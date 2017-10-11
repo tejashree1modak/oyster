@@ -24,11 +24,11 @@ echo "modules loaded"
 
 project_home=/data3/marine_diseases_lab/tejashree/Bio_project_SRA
 stringtie=${project_home}/stringtie
-hisat2_out=${project_home}/hisat2/cvir
+hisat2_out=${project_home}/hisat2/cvir/test
 cvir_genome=${project_home}/cvir_genome
 hisat2=${project_home}/hisat2
 hisat_cvir=${hisat2}/cvir
-cd ${stringtie}
+cd ${stringtie}/test
 
 source $project_home/github/oyster/lib/slack.sh
 
@@ -54,10 +54,10 @@ trap "tail -n 50 stringtie_out-${PBS_ARRAYID} | post_slack_message cluster-jobs 
 ## ------------------------------------------------------------------------------------------
 # StringTie to assemble transcripts for each sample with the GFF3 annotation file
 if [ "${RUN_STEP}" == "assembly" ] ; then
-    array1=($(ls -1 ${hisat_cvir}/${FILES[$PBS_ARRAYID]}.bam))
+    array1=($(ls -1 ${hisat_cvir}/test/${FILES[$PBS_ARRAYID]}.bam))
     if [ "${#array1[@]}" == "0" ]; then
-        echo "($PBS_ARRAYID) ERROR: No input files matching '${hisat_cvir}/${FILES[$PBS_ARRAYID]}.bam'"
-        post_slack_message cluster-jobs "ERROR: No input files matching '${hisat_cvir}/${FILES[$PBS_ARRAYID]}.bam'" "$me"
+        echo "($PBS_ARRAYID) ERROR: No input files matching '${hisat_cvir}/test/${FILES[$PBS_ARRAYID]}.bam'"
+        post_slack_message cluster-jobs "ERROR: No input files matching '${hisat_cvir}/test/${FILES[$PBS_ARRAYID]}.bam'" "$me"
         exit 1
     fi
 
@@ -66,13 +66,13 @@ if [ "${RUN_STEP}" == "assembly" ] ; then
     for i in ${array1[@]}; do
         base=$(basename $i)
         echo stringtie -G ${cvir_genome}/ref_C_virginica-3.0_top_level.gff3 \
-                  -o $stringtie/${i%.bam}.gtf -p 10 -l ${base%.bam} ${i}
-        post_slack_message cluster-jobs "stringtie -G ${cvir_genome}/ref_C_virginica-3.0_top_level.gff3 -o $stringtie/${i%.bam}.gtf -p 10 -l ${base%.bam} ${i}" "$me"
+                  -o $stringtie/test/${i%.bam}.gtf -p 10 -l ${base%.bam} ${i}
+        post_slack_message cluster-jobs "stringtie -G ${cvir_genome}/ref_C_virginica-3.0_top_level.gff3 -o $stringtie/test/${i%.bam}.gtf -p 10 -l ${base%.bam} ${i}" "$me"
         if [ "$debug" ]; then
             touch ${i%.bam}.gtf 
         else
             stringtie -G ${cvir_genome}/ref_C_virginica-3.0_top_level.gff3 \
-              -o $stringtie/${base%.bam}.gtf -l ${base%.bam} -p 10 ${i}
+              -o $stringtie/test/${base%.bam}.gtf -l ${base%.bam} -p 10 ${i}
         fi
         echo done
         post_slack_message cluster-jobs "done" "$me.$base"
@@ -98,7 +98,7 @@ fi
 if [ "${RUN_STEP}" == "merge" ] ; then
     echo "Starting StringTie Merge"
     post_slack_message cluster-jobs "Starting merge" "$me"
- 	stringtie --merge -G ${cvir_genome}/ref_C_virginica-3.0_top_level.gff3 -o $stringtie/stringtie_merged.gtf $stringtie/mergelist.txt
+ 	stringtie --merge -G ${cvir_genome}/ref_C_virginica-3.0_top_level.gff3 -o $stringtie/test/stringtie_merged.gtf $stringtie/mergelist.txt
     echo "done"
     post_slack_message cluster-jobs "done" "$me.$base"
     #done
@@ -109,7 +109,7 @@ fi
 if [ "${RUN_STEP}" == "compare" ] ; then
     echo "Starting StringTie Gffcompare"
     post_slack_message cluster-jobs "Starting gffcompare" "$me"
- 	gffcompare -r ${cvir_genome}/ref_C_virginica-3.0_top_level.gff3 -G -o $stringtie/merged $stringtie/stringtie_merged.gtf
+ 	gffcompare -r ${cvir_genome}/ref_C_virginica-3.0_top_level.gff3 -G -o $stringtie/merged $stringtie/test/stringtie_merged.gtf
     echo "done"
     post_slack_message cluster-jobs "compare done" "$me.$base"
     #done
@@ -122,10 +122,10 @@ fi
 #Re-estimate transcript abundance after merge step
 
 if [ "${RUN_STEP}" == "reestimate" ] ; then
-    array1=($(ls -1 ${hisat_cvir}/${FILES[$PBS_ARRAYID]}.bam))
+    array1=($(ls -1 ${hisat_cvir}/test/${FILES[$PBS_ARRAYID]}.bam))
     if [ "${#array1[@]}" == "0" ]; then
-        echo "($PBS_ARRAYID) ERROR: No input files matching '${hisat_cvir}/${FILES[$PBS_ARRAYID]}.bam'"
-        post_slack_message cluster-jobs "ERROR: No input files matching '${hisat_cvir}/${FILES[$PBS_ARRAYID]}.bam'" "$me"
+        echo "($PBS_ARRAYID) ERROR: No input files matching '${hisat_cvir}/test/${FILES[$PBS_ARRAYID]}.bam'"
+        post_slack_message cluster-jobs "ERROR: No input files matching '${hisat_cvir}/test/${FILES[$PBS_ARRAYID]}.bam'" "$me"
         exit 1
     fi
     
@@ -134,14 +134,14 @@ if [ "${RUN_STEP}" == "reestimate" ] ; then
     for i in ${array1[@]}; do
         echo "${array1[@]}"
         base=$(basename $i)
-        echo stringtie -e -G $stringtie/stringtie_merged.gtf \
-                  -o $stringtie/${i%.bam}.merge.gtf -p 10 ${i}
-        post_slack_message cluster-jobs "stringtie -e -G $stringtie/stringtie_merged.gtf -o $stringtie/${base%.bam}.merge.gtf -p 10 ${i}" "$me"
+        echo stringtie -e -G $stringtie/test/stringtie_merged.gtf \
+                  -o $stringtie/test/${i%.bam}.merge.gtf -p 10 ${i}
+        post_slack_message cluster-jobs "stringtie -e -G $stringtie/test/stringtie_merged.gtf -o $stringtie/test/${base%.bam}.merge.gtf -p 10 ${i}" "$me"
         if [ "$debug" ]; then
             touch ${i%.bam}.merge.gtf 
         else
-            stringtie -e -G $stringtie/stringtie_merged.gtf \
-              -o $stringtie/${base%.bam}.merge.gtf -p 10 ${i}
+            stringtie -e -G $stringtie/test/stringtie_merged.gtf \
+              -o $stringtie/test/${base%.bam}.merge.gtf -p 10 ${i}
         fi
         echo done
         post_slack_message cluster-jobs "done" "$me.$base"
@@ -164,15 +164,15 @@ fi
 #Generate count matrices using prepDE.py, prep_DE.py accepts a .txt file listing sample IDs and GTFs paths 
 #create sample_list.txt
 if [ "${RUN_STEP}" == "deseq" ] ; then
-    array2=($(ls $stringtie/*.merge.gtf))
+    array2=($(ls $stringtie/test/*.merge.gtf))
     :> sample_list.txt #to avoid concatenating file content if run twice this command will 
                        #make a new file each time you run the code.
     
     for i in ${array2[@]}; do
         base=$(basename $i)
-    	echo "${base%.merge.gtf} ${i}" >> sample_lst.txt
+    	echo "${base%.merge.gtf} ${i}" >> sample_list.txt
     done
-    python prepDE.py -i sample_lst.txt
+    python $stringtie/prepDE.py -i sample_list.txt
 fi    	
 			
 #Steps continued in R, 08_DESeq_RNA_pipeline_just_pathogen_challenge.R

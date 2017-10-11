@@ -12,11 +12,9 @@ module load SAMtools/1.3.1-foss-2016b
 
 #HISAT2 code
 #Indexing a reference genome and no annotation file
-	#create new directory for the HISAT index  and needed files called pipeline_files, and put the genome inside it
-	# copy all reads files into this directory as well to ensure easy access by commands
-
-    #To run script:1. Set RUN_STEP= either hisat or samtools then save and quit file. 
-    #              2. qsub -N name you want to give -t pick a number from 1-4 since our input to FILES array
+    #To run script:1. Set RUN_STEP= either hisat or samtools then save and quit file.
+    #              2. If making genome index just set RUN_STEP=genome_index and qsub -N genomeindex hisat.sh
+    #              3. qsub -N name you want to give -t pick a number from 1-4 since our input to FILES array
     #                 has 4 files. eg: 1. RUN_STEP=hisat
     #                                     qsub -N 23.fq -t 1 hisat.sh
     #                              eg: 2 RUN_STEP=samtools
@@ -31,18 +29,15 @@ qc=${project_home}/qc
 
 cd $hisat2
 mkdir -p cvir
-
-if [ -z ${PBS_ARRAYID} ] ; then
-    # this has to run in ARRAY mode
-    echo "Run with qsub -t <array args>, exiting.."
-    exit 1
-fi
-
 source $project_home/github/oyster/lib/slack.sh
 
 FILES=( _ SRR5357619 SRR5357620 SRR5357623 SRR5357624 SRR5357625 SRR5357626 )
+#RUN_STEP=genome_index
 #RUN_STEP=hisat
-RUN_STEP=samtools
+#RUN_STEP=samtools
+#RUN_STEP=samtools_stats
+RUN_STEP=samtools_index
+
 me="hisat::${PBS_JOBNAME}::$RUN_STEP"
 
 if [ -z ${RUN_STEP} ] ; then
@@ -58,6 +53,19 @@ fi
 
 # tell system to call post_slack_message with last 50 lines of output
 trap "tail -n 50 hisat_out-${PBS_ARRAYID} | post_slack_message cluster-jobs - '$me::log'" ERR
+#-------------------------------------------------------------------------------------------
+#Indexing a reference genome and no annotation file
+	#create new directory for the HISAT index  and needed files called pipeline_files, and put the genome inside it
+	# copy all reads files into this directory as well to ensure easy access by commandsi
+if [ "${RUN_STEP}" == "genome_index" ] ; then
+    cd ${cvir_genome}
+    hisat2-build -f ${cvir_genome}/cvir_edited.fa  cvir_edited_index
+    echo "genome index built"
+fi
+
+    # -f indicates that the reference input files are FASTA files
+
+    #Stay in the directory created in the previous step
 
 # ------------------------------------------------------------------------------------------
 #hisat2 align paired end reads to reference genome
@@ -75,12 +83,12 @@ if [ "${RUN_STEP}" == "hisat" ] ; then
         right_file=$(echo ${left_file}|sed s/_1/_2/)
         file=$(basename ${left_file%_1.fq}) 
 
-        echo starting hisat2 --dta -x ${cvir_genome}/cvir -1 ${left_file} -2 ${right_file} -S ${hisat2}/cvir/${file}.sam
-        post_slack_message cluster-jobs "starting hisat2 --dta -x ${cvir_genome}/cvir -1 ${left_file} -2 ${right_file} -S ${hisat2}/cvir/${file}.sam" "${me}.${file}"
+        echo starting hisat2 --dta -x ${cvir_genome}/cvir_edited -1 ${left_file} -2 ${right_file} -S ${hisat2}/cvir/${file}.sam
+        post_slack_message cluster-jobs "starting hisat2 --dta -x ${cvir_genome}/cvir_edited_index -1 ${left_file} -2 ${right_file} -S ${hisat2}/cvir/${file}.sam" "${me}.${file}"
         if [ "$debug" ] ; then
             touch ${hisat2}/cvir/${file}.sam
         else
-            hisat2 --dta -x ${cvir_genome}/cvir -1 ${left_file} -2 ${right_file} -S ${hisat2}/cvir/${file}.sam
+            hisat2 --dta -x ${cvir_genome}/cvir_edited_index -1 ${left_file} -2 ${right_file} -S ${hisat2}/cvir/test/${file}.sam
         fi
         echo done
         post_slack_message cluster-jobs "done" "${me}.${file}"
@@ -88,11 +96,10 @@ if [ "${RUN_STEP}" == "hisat" ] ; then
     echo "Done hisat2 alignment"
     post_slack_message cluster-jobs "Done hisat2 alignment" "$me"
 fi
-
 # ------------------------------------------------------------------------------------------
 #SAMTOOLS sort to convert the SAM file into a BAM file to be used with StringTie
 if [ "${RUN_STEP}" == "samtools" ] ; then
-    array3=($(ls -1 ${hisat2}/cvir/${FILES[$PBS_ARRAYID]}.sam))
+    array3=($(ls -1 ${hisat2}/cvir/test/${FILES[$PBS_ARRAYID]}.sam))
     if [ "${#array3[@]}" == "0" ]; then
         echo "($PBS_ARRAYID) ERROR: No input files matching '${qc}/${FILES[$PBS_ARRAYID]}.sam'"
         post_slack_message cluster-jobs "ERROR: No input files matching '${qc}/${FILES[$PBS_ARRAYID]}.sam'" "$me"
@@ -115,5 +122,29 @@ if [ "${RUN_STEP}" == "samtools" ] ; then
     echo "Done samtools convert"
     post_slack_message cluster-jobs "Done samtools conver" "$me"
 fi
+#-----------------------------------------------------------------------------
+#Get bam file statistics for percentage aligned with flagstat
+# to get more detailed statistics use $ samtools stats ${i}
 
+if [ "${RUN_STEP}" == "samtools_stats" ] ; then
+    array3=($(ls -1 ${hisat2}/cvir/${FILES[$PBS_ARRAYID]}.bam))
+    for i in ${array3[@]}; do
+        base=$(basename $i)
+        samtools flagstat ${i} > ${hisat2}/cvir/${base%.bam}.stats #get % mapped
+    #to extract more detailed summary numbers
+        samtools stats ${i}| grep ^SN | cut -f 2- > ${hisat2}/cvir/${base%.bam}.fullstat
+  #| grep ^SN | cut -f 2- > ${hisat2}/cvir/${i}.bam.fullstat
+        echo "STATS DONE" $(date)
+    done
+fi
+#------------------------------------------------------------------
+#samtools index bam files 
+if [ "${RUN_STEP}" == "samtools_index" ] ; then
+    array3=($(ls -1 ${hisat2}/cvir/test/${FILES[$PBS_ARRAYID]}.bam))
+    for i in ${array3[@]}; do
+        base=$(basename $i)
+        samtools index -b ${i} ${hisat2}/cvir/test/${base%.bam}.index 
+        echo "index done" $(date)
+    done
+fi
 echo "STOP" $(date)
