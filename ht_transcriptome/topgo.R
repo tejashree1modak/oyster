@@ -1,11 +1,11 @@
-source("http://bioconductor.org/biocLite.R")
-biocLite("topGO")
+#source("http://bioconductor.org/biocLite.R")
+#biocLite("topGO")
 library("topGO")
-biocLite("ALL")
+#biocLite("ALL")
 library(ALL)
-biocLite("hgu95av2.db")
-library(package = affyLib, character.only = TRUE)
-biocLite("Rgraphviz")
+#biocLite("hgu95av2.db")
+#library(package = affyLib, character.only = TRUE)
+#biocLite("Rgraphviz")
 library("Rgraphviz")
 
 #tutorial 
@@ -36,20 +36,20 @@ names(geneList) <- geneUniverse
 #Here I am using ontology = BP 
 myGOdata <- new("topGOdata", description="My project", ontology="BP", allGenes=geneList,  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 #Building most specific GOs .....
-#( 77 GO terms found. )
+#( 77 GO terms found. ) 79
 #Build GO DAG topology ..........
-# ( 433 GO terms and 867 relations. )
+# ( 433 GO terms and 867 relations. )444
 # Annotating nodes ...............
-# ( 90 genes annotated to the GO terms. )
+# ( 90 genes annotated to the GO terms. )97
 myMFGOdata <- new("topGOdata", description="My project", ontology="MF", allGenes=geneList,  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 # Building most specific GOs .....
-# ( 85 GO terms found. )
+# ( 85 GO terms found. )88
 # 
 # Build GO DAG topology ..........
-# ( 226 GO terms and 290 relations. )
+# ( 226 GO terms and 290 relations. )230
 # 
 # Annotating nodes ...............
-# ( 95 genes annotated to the GO terms. )
+# ( 95 genes annotated to the GO terms. )102
 
 #Look at the object 
 myGOdata
@@ -61,13 +61,13 @@ myGOdata
 # Ontology:
 #   -  BP 
 # 
-# 139 available genes (all genes from the array):
+# 139 available genes (all genes from the array):146
 #   - symbol:  MSTRG.15820 MSTRG.9319 MSTRG.9372 MSTRG.931 MSTRG.9378  ...
-# - 43  significant genes. 
+# - 43  significant genes. 50
 # 
-# 90 feasible genes (genes that can be used in the analysis):
+# 90 feasible genes (genes that can be used in the analysis):97
 #   - symbol:  MSTRG.15820 MSTRG.9319 MSTRG.9372 MSTRG.931 MSTRG.9378  ...
-# - 22  significant genes. 
+# - 22  significant genes. 29
 # 
 # GO graph (nodes with at least  1  genes):
 #   - a graph with directed edges
@@ -84,18 +84,18 @@ myMFGOdata
 # Ontology:
 #   -  MF 
 # 
-# 139 available genes (all genes from the array):
+# 139 available genes (all genes from the array):146
 #   - symbol:  MSTRG.15820 MSTRG.9319 MSTRG.9372 MSTRG.931 MSTRG.9378  ...
-# - 43  significant genes. 
+# - 43  significant genes. 50
 # 
-# 95 feasible genes (genes that can be used in the analysis):
+# 95 feasible genes (genes that can be used in the analysis):102
 #   - symbol:  MSTRG.15820 MSTRG.939 MSTRG.9373 MSTRG.930 MSTRG.28296  ...
-# - 29  significant genes. 
+# - 29  significant genes. 36
 # 
 # GO graph (nodes with at least  1  genes):
 #   - a graph with directed edges
-# - number of nodes = 226 
-# - number of edges = 290 
+# - number of nodes = 226 230
+# - number of edges = 290 295
 # 
 # ------------------------- topGOdata object -------------------------
 #Ontology = CC
@@ -107,7 +107,7 @@ myCCGOdata <- new("topGOdata", description="My project", ontology="CC", allGenes
 # ( 137 GO terms and 290 relations. )
 # 
 # Annotating nodes ...............
-# ( 85 genes annotated to the GO terms. )
+# ( 85 genes annotated to the GO terms. )92
 myCCGOdata
 # ------------------------- topGOdata object -------------------------
 #   
@@ -117,13 +117,13 @@ myCCGOdata
 # Ontology:
 #   -  CC 
 # 
-# 139 available genes (all genes from the array):
+# 139 available genes (all genes from the array):146
 #   - symbol:  MSTRG.15820 MSTRG.9319 MSTRG.9372 MSTRG.931 MSTRG.9378  ...
-# - 43  significant genes. 
+# - 43  significant genes. 50
 # 
-# 85 feasible genes (genes that can be used in the analysis):
+# 85 feasible genes (genes that can be used in the analysis):92
 #   - symbol:  MSTRG.9319 MSTRG.931 MSTRG.9378 MSTRG.930 MSTRG.23191  ...
-# - 27  significant genes. 
+# - 27  significant genes. 34
 # 
 # GO graph (nodes with at least  1  genes):
 #   - a graph with directed edges
@@ -136,15 +136,15 @@ myCCGOdata
 #BP
 sg <- sigGenes(myGOdata)
 str(sg)
-numSigGenes(myGOdata) #22 sig genes 
+numSigGenes(myGOdata) #22 sig genes 29
 #MF
 sg_mf <- sigGenes(myMFGOdata)
 str(sg_mf)
-numSigGenes(myMFGOdata) #29 sig genes
+numSigGenes(myMFGOdata) #29 sig genes 36
 #CC
 sg_cc <- sigGenes(myCCGOdata)
 str(sg_cc)
-numSigGenes(myCCGOdata) #27 sig genes
+numSigGenes(myCCGOdata) #27 sig genes 34
 
 ############ Performing enrichment tests ############ 
 #The p-values computed by the runTest function are unadjusted for multiple testing.
@@ -157,40 +157,40 @@ resultFisher #The p-values have not been corrected for multiple testing.
 # Description: My project 
 # Ontology: BP 
 # 'classic' algorithm with the 'fisher' test
-# 433 GO terms scored: 1 terms with p < 0.01
+# 433 GO terms scored: 1 terms with p < 0.01 444
 # Annotation data:
-#   Annotated genes: 90 
-# Significant genes: 22 
+#   Annotated genes: 90 97
+# Significant genes: 22 29
 # Min. no. of genes annotated to a GO: 1 
-# Nontrivial nodes: 188 
+# Nontrivial nodes: 188 205
 #ontology = MF
 resultFisherMF <- runTest(myMFGOdata, algorithm="classic", statistic="fisher") 
 resultFisherMF #The p-values have not been corrected for multiple testing.
 # Description: My project 
 # Ontology: MF 
 # 'classic' algorithm with the 'fisher' test
-# 226 GO terms scored: 0 terms with p < 0.01
+# 226 GO terms scored: 0 terms with p < 0.01 230
 # Annotation data:
-#   Annotated genes: 95 
-# Significant genes: 29 
+#   Annotated genes: 95 102
+# Significant genes: 29 36
 # Min. no. of genes annotated to a GO: 1 
-# Nontrivial nodes: 121 
+# Nontrivial nodes: 121 128
 #ontology = CC
 resultFisherCC <- runTest(myCCGOdata, algorithm="classic", statistic="fisher") 
 resultFisherCC
 # Description: My project 
 # Ontology: CC 
 # 'classic' algorithm with the 'fisher' test
-# 137 GO terms scored: 0 terms with p < 0.01
+# 137 GO terms scored: 0 terms with p < 0.01 137
 # Annotation data:
-#   Annotated genes: 85 
-# Significant genes: 27 
+#   Annotated genes: 85 92
+# Significant genes: 27 34
 # Min. no. of genes annotated to a GO: 1 
-# Nontrivial nodes: 86 
+# Nontrivial nodes: 86 88
 
 #Kolmogorov-Smirnov test
-resultKS <- runTest(myGOdata, algorithm = "classic", statistic = "ks") #classic
-resultKS
+#resultKS <- runTest(myGOdata, algorithm = "classic", statistic = "ks") #classic
+#resultKS
 # Description: My project 
 # Ontology: BP 
 # 'classic' algorithm with the 'ks' test
@@ -200,8 +200,8 @@ resultKS
 # Significant genes: 22 
 # Min. no. of genes annotated to a GO: 1 
 # Nontrivial nodes: 433 
-resultKS.elim <- runTest(myGOdata, algorithm = "elim", statistic = "ks") #elim
-resultKS.elim
+#resultKS.elim <- runTest(myGOdata, algorithm = "elim", statistic = "ks") #elim
+#resultKS.elim
 # Description: My project 
 # Ontology: BP 
 # 'elim' algorithm with the 'ks : 0.01' test
@@ -214,17 +214,17 @@ resultKS.elim
 
 #list the top 22 significant results found
 #The GenTable function returns a data frame containing the top topNodes GO terms identified by the elim algorithm,
-allRes <- GenTable(myGOdata, classicFisher = resultFisher,classicKS = resultKS, elimKS = resultKS.elim,orderBy = "classicFisher", ranksOf = "classicFisher", topNodes = 22)
+#allRes <- GenTable(myGOdata, classicFisher = resultFisher,classicKS = resultKS, elimKS = resultKS.elim,orderBy = "classicFisher", ranksOf = "classicFisher", topNodes = 22)
 
 #BP
 FisherRes <- GenTable(myGOdata, classicFisher = resultFisher, orderBy = "classicFisher", ranksOf = "classicFisher", topNodes = 22)
-write.csv(FisherRes, file = "FisherResBP.csv")
+write.csv(FisherRes, file = "FisherResBPall.csv")
 #MF
 FisherResMF <- GenTable(myMFGOdata, classicFisher = resultFisherMF, orderBy = "classicFisher", ranksOf = "classicFisher", topNodes = 22)
-write.csv(FisherResMF, file = "FisherResMF.csv")
+write.csv(FisherResMF, file = "FisherResMFall.csv")
 #CC
 FisherResCC <- GenTable(myCCGOdata, classicFisher = resultFisherCC, orderBy = "classicFisher", ranksOf = "classicFisher", topNodes = 22)
-write.csv(FisherResCC, file = "FisherResCC.csv")
+write.csv(FisherResCC, file = "FisherResCCall.csv")
 
 #showSigOfNodes(myGOdata, score(resultFisher), firstSigNodes = 5, useInfo ='all')
 #printGraph(myGOdata, resultFisher, firstSigNodes = 5, fn.prefix = "tGO", useInfo = "all", pdfSW = TRUE)
