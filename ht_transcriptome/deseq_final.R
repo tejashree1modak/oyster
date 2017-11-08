@@ -17,7 +17,8 @@ library(RColorBrewer)
 library(genefilter)
 #install.packages("MDplot")
 library(MDplot)
-
+#install.packages("pheatmap")
+library(pheatmap)
 
 # Construct Full_PHENO_DATA.csv that contains metadata 
 cts <- as.matrix(read.csv("~/Documents/Projects/oyster/exp_data/Spring2016/genome/transcriptome/transcriptome/gene_count_matrix_names.csv", row.names="gene_id"))
@@ -40,6 +41,7 @@ head(dds) #why are my domensions only 6x6? 6colnmaes for 6sras but why just 6 ro
 #Pre-filter to remove rows with 0 or 1 read
 dds <- dds[ rowSums(counts(dds)) > 1, ]
 head(dds)
+
 
 #By default, R will choose a reference level for factors based on alphabetical order then DESeq 
 #will do the comparisons based on the alphabetical order of the levels.
@@ -102,6 +104,16 @@ DESeq2::plotPCA(rld, intgroup=c("condition"))
 #26,19,23 cluster together, 20 in far right corner, 24 and 25 in the middle (in order from left) 
 #19,24:day5, 20,25:day12 and 23,26:day16
 
+#Gene clustering#
+library("genefilter")
+topVarGenes <- head(order(rowVars(assay(rld)), decreasing = TRUE), 50) #picking the 50genes with highest variance across samples
+mat <- assay(rld)[ topVarGenes, ]
+mat <- mat - rowMeans(mat)
+anno <- as.data.frame(colData(rld)[, c("condition","stressorLevel")]) 
+pheatmap(mat, annotation_col = anno)
+
+### DE analysis ####
+# We start with raw counts again not log transformed as done for PCA.
 #estimate dispersion
 #the first step in the analysis of differential expression, 
 #is to obtain an estimate of the dispersion parameter for each gene. 
@@ -121,11 +133,26 @@ plotDispEsts(dds)
 
 ###Statistical testing of differential expression
 dds <-  nbinomWaldTest(dds)
-DESeq2Res <- results(dds, pAdjustMethod = "BH")
+DESeq2Res <- results(dds, pAdjustMethod = "BH") #BBH=Benjamini Hochberg adjustment
+DESeq2Res #DataFrame with 40905 rows and 6 columns
+#Here lfcSE: the standard error estimate for the log2 fold change estimate.
+#Null hypo:that there is zero effect of the treatment on the gene and that the observed difference between 
+#treatment and control was merely caused by experimental variability.
+#pvalue:p value indicates the probability that a fold change as strong as the observed one, or even stronger, 
+#would be seen under the situation described by the null hypothesis.
 head(DESeq2Res)
+summary(DESeq2Res)
+#out of 40905 with nonzero total read count
+#adjusted p-value < 0.1
+#LFC > 0 (up)     : 32, 0.078% 
+#LFC < 0 (down)   : 59, 0.14% 
+#outliers [1]     : 5368, 13% 
+#low counts [2]   : 793, 1.9% 
+#(mean count < 1)
 ### number of siginificant DE-genes
 table(DESeq2Res$padj < 0.1) #identified 91 differentially expressed genes at padj > 0.1
 table(DESeq2Res$padj < 0.05) #identified 58 differentially expressed genes at padj < 0.05
+
 # ## get average expressions
 # overallBaseMean <- as.matrix(DESeq2Res[, "baseMean", drop = F])
 # 
@@ -174,6 +201,9 @@ plotMA(nonsig)
 write.csv( as.data.frame(DESeq2Res), file="Gene_df2.csv")
 write.csv( as.data.frame(sig), file="Gene_dfSig2.csv")
 write.csv( as.data.frame(nonsig), file = "Gene_df_non_Sig2.csv")
+
+#Session info for records. 
+devtools::session_info()
 
 #################################################################################################################
 
