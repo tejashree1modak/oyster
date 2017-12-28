@@ -24,6 +24,7 @@ source $project_home/github/oyster/lib/slack.sh
 #RUN_STEP=stat
 #RUN_STEP=adapter-trim
 RUN_STEP=quality-filter
+#RUN_STEP=stat,adapter-trim
 
 me="bbtools::${PBS_JOBNAME}-$RUN_STEP"
 
@@ -33,17 +34,33 @@ if [ -z ${RUN_STEP} ] ; then
     exit 1
 fi
 
+FILES=(
+    _
+    C_K_0_TACAGC
+    C_M_0_CGGAAT 
+    C_V_0_CACGAT 
+    RE_K_6_TCCCGA 
+    RE_M_6_CTCAGA 
+    RE_V_6_CATGGC 
+    RI_K_24_TCGGCA 
+    RI_K_6_TCATTC 
+    RI_M_24_TAATCG 
+    RI_M_6_CTATAC 
+    RI_V_24_CCAACA 
+    RI_V_6_CAGGCG 
+    S4_K_24_TCGAAG 
+    S4_K_6_TATAAT 
+    S4_M_24_GACGAC 
+    S4_M_6_CTAGCT 
+    S4_V_24_CATTTT 
+    S4_V_6_CACTCA
+    )
+
 # tell system to call post_slack_message
-trap "tail -n 50 stringtie_out-${PBS_ARRAYID} | post_slack_message cluster-jobs - '$me::log'" ERR
+trap "tail -n 50 bbtools_out-${PBS_ARRAYID} | post_slack_message cluster-jobs - '$me::log'" ERR
 
-if [ "${RUN_STEP}" == "stat" ]; then
-    left=($(ls -1 $sra/*_1.fastq))
-    if [ -n "$PBS_ARRAYID" ]; then
-        ix=$PBS_ARRAYID
-        let ix--
-        left=( ${left[$ix]} )
-    fi
-
+if echo "${RUN_STEP}" | grep -qw "stat" ; then
+    left=( $(ls -1 $sra/${FILES[$PBS_ARRAYID]}_1.fastq) )
     echo "Starting 'stat'"
     for left_file in ${left[@]}; do  # @ symbol tells it to go through each item in the array  
         left_file_basename=$(basename $left_file)
@@ -59,7 +76,7 @@ if [ "${RUN_STEP}" == "stat" ]; then
         fi
         echo done
     done
-    post_slack_message cluster-jobs "Done state $me"
+    post_slack_message cluster-jobs "Done stat $me"
     echo "Done 'stat'"
 fi
 
@@ -86,13 +103,8 @@ fi
 #
 ## Trimming of adaptors found in the previous command
 
-if [ "${RUN_STEP}" == "adapter-trim" ]; then
-    array3=($(ls -1 ${sra}/*_1.fastq))
-    if [ -n "$PBS_ARRAYID" ]; then
-        ix=$PBS_ARRAYID
-        let ix--
-        array3=( ${array3[$ix]} )
-    fi
+if echo "${RUN_STEP}" | grep -qw "adapter-trim" ; then
+    array3=($(ls -1 ${sra}/${FILES[$PBS_ARRAYID]}_1.fastq))
     echo "Starting adaptor trim"
     for left_file in ${array3[@]}; do  # @ symbol tells it to go through each item in the array
         right_file=$(echo ${left_file}|sed s/_1/_2/)
@@ -110,7 +122,8 @@ if [ "${RUN_STEP}" == "adapter-trim" ]; then
                  ktrim=r k=23 mink=11 hdist=1 tpe tbo
         fi
         echo done
-    done	
+    done
+    post_slack_message cluster-jobs "$me: done adapter trim"
     echo "Done adaptor trim"
 fi
 
@@ -145,30 +158,26 @@ fi
 
 # ------------------------------------------------------------------------------------------
 
-if [ "${RUN_STEP}" == "quality-filter" ]; then
+if echo "${RUN_STEP}" | grep -qw "quality-filter" ; then
     ##array5=($(ls -1 ${qc}/*_1.trim))
     #array5=( ${qc}/SRR5357626_1.trim  )
-    array5=($(ls -1 ${qc}/*_1.adp))
-    if [ -n "$PBS_ARRAYID" ]; then
-        ix=$PBS_ARRAYID
-        let ix--
-        array5=( ${array5[$ix]} )
-    fi
+    array5=($(ls -1 ${qc}/${FILES[$PBS_ARRAYID]}_1.adp))
+    #suffix=ftl
+    suffix=fq
     
     for left_file in ${array5[@]}; do 
         right_file=$(echo ${left_file}|sed s/_1/_2/)
-        echo starting bbduk.sh in1=${left_file}  out1=${left_file%.adp}.ftl \
-                 in2=${right_file} out2=${right_file%.adp}.ftl maq=10
-        post_slack_message cluster-jobs "$me: starting bbduk.sh in1=${left_file}  out1=${left_file%.adp}.ftl in2=${right_file} out2=${right_file%.adp}.ftl maq=10"
+        echo starting bbduk.sh in1=${left_file}  out1=${left_file%.adp}.${suffix} \
+                 in2=${right_file} out2=${right_file%.adp}.${suffix} maq=10
+        post_slack_message cluster-jobs "$me: starting bbduk.sh in1=${left_file}  out1=${left_file%.adp}.${suffix} in2=${right_file} out2=${right_file%.adp}.${suffix} maq=10"
          
         if [ "$debug" ]; then
-            touch ${left_file%.adp}.ftl ${right_file%.adp}.ftl 
+            touch ${left_file%.adp}.${suffix} ${right_file%.adp}.${suffix} 
         else
-            bbduk.sh in1=${left_file}  out1=${left_file%.adp}.ftl \
-                 in2=${right_file} out2=${right_file%.adp}.ftl maq=10
+            bbduk.sh in1=${left_file}  out1=${left_file%.adp}.${suffix} \
+                 in2=${right_file} out2=${right_file%.adp}.${suffix} maq=10
         fi
         echo done
-        post_slack_message cluster-jobs "$me: $left_file $right_file done"
     done
     post_slack_message cluster-jobs "$me: done quality filtering"
     echo "Done quality filtering"
