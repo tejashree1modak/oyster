@@ -16,8 +16,10 @@ source $project_home/github/oyster/lib/slack.sh
 
 cd $blast_dir
 
-query_file=$stringtie/test/rightway_unchar_na.fa
-out_file=test.xml
+#query_file=$stringtie/test/rightway_unchar_na.fa
+query_file=$project_home/github/oyster/ht_transcriptome/in.fa
+#out_file=test.xml
+out_file=combined.xml
 
 num_threads=10
 
