@@ -57,8 +57,8 @@ FILES=(
     )
 
 #RUN_STEP=genome_index
-RUN_STEP=hisat
-#RUN_STEP=samtools
+#RUN_STEP=hisat
+RUN_STEP=samtools
 #RUN_STEP=samtools_stats
 #RUN_STEP=samtools_index
 
@@ -130,10 +130,10 @@ fi
 # ------------------------------------------------------------------------------------------
 #SAMTOOLS sort to convert the SAM file into a BAM file to be used with StringTie
 if [ "${RUN_STEP}" == "samtools" ] ; then
-    array3=($(ls -1 ${trans2017}/${FILES[$PBS_ARRAYID]}.sam))
+    array3=($(ls -1 ${trans2017}/cvir/${FILES[$PBS_ARRAYID]}.sam))
     if [ "${#array3[@]}" == "0" ]; then
-        echo "($PBS_ARRAYID) ERROR: No input files matching '${qc}/${FILES[$PBS_ARRAYID]}.sam'"
-        post_slack_message cluster-jobs "ERROR: No input files matching '${qc}/${FILES[$PBS_ARRAYID]}.sam'" "$me"
+        echo "($PBS_ARRAYID) ERROR: No input files matching '${qc}/trans2017/${FILES[$PBS_ARRAYID]}.sam'"
+        post_slack_message cluster-jobs "ERROR: No input files matching '${qc}/trans2017/${FILES[$PBS_ARRAYID]}.sam'" "$me"
         exit 1
     fi
 
