@@ -1,8 +1,9 @@
 #!/bin/bash
-#PBS-l nodes=1
-#PBS-l walltime=1000:00:00
-#PBS -j oe
-#PBS -o blast_out
+#SBATCH --job-name="blast"
+#SBATCH --time=9999:00:00
+#SBATCH --nodes=1
+#SBATCH --output="de5_rif12vs5_blast_out.%A-%a"
+#SBATCH --error="de5_rif12vs5_blast_out.%A-%a"
 
 set -e 
 echo "START $(date)"
@@ -17,24 +18,25 @@ source $project_home/github/oyster/lib/slack.sh
 cd $blast_dir
 
 #query_file=$stringtie/test/rightway_unchar_na.fa
-query_file=$project_home/github/oyster/ht_transcriptome/in.fa
+#query_file=$project_home/github/oyster/ht_transcriptome/in.fa
+query_file=$stringtie/test/design5/rif16vs5/right_way_unique.fa
 #out_file=test.xml
-out_file=combined.xml
+out_file=de5_rif16vs5.xml
 
 num_threads=10
 
 module load BLAST+/2.5.0-foss-2016b-Python-2.7.12
 
 # tell system to call post_slack_message with last 50 lines of output
-trap "tail -n 50 blast_out-${PBS_ARRAYID} | post_slack_message cluster-jobs - '$me::log'" ERR
+trap "tail -n 50 blast_out-${SLURM_ARRAY_TASK_ID} | post_slack_message cluster-jobs - '$me::log'" ERR
 
-if [ -n "$PBS_ARRAYID" ]; then
+if [ -n "$SLURM_ARRAY_TASK_ID" ]; then
     # if this is an array job, then we will take Nth sequence from the query_file and
     # write it to a temporary file as the input file
     # the output file will ahve array id as its suffix and will have to be merged later on by hand
-    tmp_file="/tmp/${query_file##*/}.${PBS_ARRAYID}.$$"
+    tmp_file="/tmp/${query_file##*/}.${SLURM_ARRAY_TASK_ID}.$$"
 
-    offset=( $(grep -b '^>' $query_file | awk -v FS=':' -v n=$PBS_ARRAYID -f $project_home/github/oyster/lib/nfasta.awk) )
+    offset=( $(grep -b '^>' $query_file | awk -v FS=':' -v n=$SLURM_ARRAY_TASK_ID -f $project_home/github/oyster/lib/nfasta.awk) )
 
     if [ ${#offset[*]} -eq 1 ] ; then
         # last offset
@@ -49,10 +51,10 @@ if [ -n "$PBS_ARRAYID" ]; then
     fi
 
     query_file=$tmp_file 
-    out_file=${out_file}.${PBS_ARRAYID}
+    out_file=${out_file}.${SLURM_ARRAY_TASK_ID}
 fi
 
-me="blast::${PBS_JOBNAME}::$PBS_ARRAYID on $HOSTNAME"
+me="blast::${PBS_JOBNAME}::$SLURM_ARRAY_TASK_ID on $HOSTNAME"
 
 echo blastx -db $ncbi_nr_db -outfmt 5 -evalue 1e-3 -word_size 3 -show_gis -num_alignments 20 -max_hsps 20 -num_threads $num_threads -out $out_file -query $query_file
 post_slack_message cluster-jobs "$me : blastx -db $ncbi_nr_db -outfmt 5 -evalue 1e-3 -word_size 3 -show_gis -num_alignments 20 -max_hsps 20 -num_threads $num_threads -out $out_file -query $query_file"
