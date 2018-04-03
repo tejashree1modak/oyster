@@ -4,165 +4,245 @@ import tempfile
 import os
 import json
 import sys
+import argparse
+
+default_gtf_file = "/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2016/genome/transcriptome/transcriptome/design1/stringtie_merged.gtf"
+default_gff_file = "/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2016/genome/transcriptome/transcriptome/files/ref_C_virginica-3.0_top_level.gff3"
 
 # getting transcripts from gff using awk
 
-#Read in the blast2go_go_table_20171020_1653.txt file as dict. Has headers and is tab separated.
-#blast_dict = Seqname , Description
-# parsing blast2go files
-# Tags    SeqName Description     Length  #Hits   e-Value sim mean        #GO     GO IDs  GO Names        Enzyme Codes    Enzyme Names    InterPro IDs    InterPro GO IDs InterPro GO Names
-# [BLASTED, MAPPED, ANNOTATED]    MSTRG.15820     spire homolog 1-like isoform X7 24121   20      0.0     95.4    3       P:GO:0016192; F:GO:0003779; P:GO:0045010        P:vesicle-mediated transport; F:actin binding; P:actin nucleation 
-blast_dict = {}
-with open('/Users/tejashree/b2gWorkspace/blast2go_go_table_20171020_1653.txt') as blastfile:
+def read_gtf_file(gtf_file):
+    """
+    takes gtf_file name as input
+    returns: gtf dictionary
+        { "gene_id" : [  {"transcript_id" : T, ref_gene_id : R}
+                              where if R is "na" there could be one or more T entries that are valid
+                                    if R is not "na" there could be one or more R entries for a gene_id (transcript_id will be "na" for such)
+                                    else there will be 1 entry in this list, with both "na"
+                       ]}
+    """
+
+    #Read in the stringtie_merged.gtf file as a dict
+    # First few lines of the file will be removed by using cut before giving the file as input
+    #No header to make keys? Yes 
+    # parsing gtf files
+    # NC_007175.2     StringTie       transcript      1       1623    1000    +       .       gene_id "MSTRG.1"; transcript_id "gene39493"; gene_name "COX1"; ref_gene_id "gene39493";
+    # NC_007175.2     StringTie       exon    1       1623    1000    +       .       gene_id "MSTRG.1"; transcript_id "gene39493"; exon_number "1"; gene_name "COX1"; ref_gene_id "gene39493";
+    # NC_007175.2     StringTie       transcript      80      358     1000    -       .       gene_id "MSTRG.2"; transcript_id "MSTRG.2.1";
+    gtf_dict = {}  # { 'gene_id' : [{ 'ref_gene_id':"", 'transcript_id':""}]}
+
+    with open("/tmp/sanitized_gtf", "w") as sanitized_gtf:
+        get_transcripts_script = os.path.join(os.path.dirname(__file__), "get_transcripts.awk")
+        subprocess.check_call(["awk", "-f", get_transcripts_script, gtf_file], stdout=sanitized_gtf)
+
+
+    reader = csv.DictReader(open("/tmp/sanitized_gtf"), dialect="excel-tab")
+    # sanitized_gtf is a file of 3 columns
+    # gene_id transcript_id ref_gene_id .. ref_gene_id can be empty
+    for line in reader:
+        gene_id = line["gene_id"].strip('"') 
+        transcript_id = line["transcript_id"].strip('"') 
+        ref_gene_id = line["ref_gene_id"].strip('"') 
+
+        if gene_id in gtf_dict:
+            gtf_dict[gene_id].append({'ref_gene_id' : ref_gene_id, 'transcript_id': transcript_id})
+        else:
+            gtf_dict[gene_id] = [{'ref_gene_id' : ref_gene_id, 'transcript_id': transcript_id}]
+    print "Created sanitized gtf data genes =", len(gtf_dict), "entries =", sum(len(entries) for entries in gtf_dict.values())
+    
+    for gene_id in gtf_dict:
+        gene_id_rows = [ row for row in gtf_dict[gene_id] if row['ref_gene_id'] ]
+        if gene_id_rows:
+            ref_gene_ids = { row["ref_gene_id"] for row in gene_id_rows }
+            gtf_dict[gene_id] = []
+            for rgi in ref_gene_ids:
+                gtf_dict[gene_id].append({'ref_gene_id': rgi, "transcript_id" : ''})
+        else:
+            transcript_id_rows = [ row for row in gtf_dict[gene_id]
+                                    if row['transcript_id'] and not row['transcript_id'].startswith("MSTRG") ]
+            if transcript_id_rows:
+                gtf_dict[gene_id] = transcript_id_rows
+            else:
+                gtf_dict[gene_id] = [ {'transcript_id' : '', 'ref_gene_id' : ''}]
+    print "Cross referenced sanitized gtf data genes =", len(gtf_dict), "entries =", sum(len(entries) for entries in gtf_dict.values())
+
+    return gtf_dict
+
+def read_blast_file(blastfile, add_description=True):
+    """
+    returns: a dictionary {"SeqName": "Description"} if add_description=True else {"SeqName" : ""}
+    """
+    #Read in the blast2go_go_table_20171020_1653.txt file as dict. Has headers and is tab separated.
+    #blast_dict = Seqname , Description
+    # parsing blast2go files
+    # Tags    SeqName Description     Length  #Hits   e-Value sim mean        #GO     GO IDs  GO Names        Enzyme Codes    Enzyme Names    InterPro IDs    InterPro GO IDs InterPro GO Names
+    # [BLASTED, MAPPED, ANNOTATED]    MSTRG.15820     spire homolog 1-like isoform X7 24121   20      0.0     95.4    3       P:GO:0016192; F:GO:0003779; P:GO:0045010        P:vesicle-mediated transport; F:actin binding; P:actin nucleation 
+    blast_dict = {}
     reader = csv.DictReader(blastfile, delimiter = '\t')
     for line in reader:
         seqname = line["SeqName"]
-        desc = line["Description"]
+        desc = line.get("Description", "") if add_description else ""
         blast_dict[seqname] = desc
-print "Parsed", len(blast_dict), "entries from", blastfile.name
+    print "Parsed", len(blast_dict), "entries from", blastfile.name
+    return blast_dict
 
-#Read in the stringtie_merged.gtf file as a dict
-# First few lines of the file will be removed by using cut before giving the file as input
-#No header to make keys? Yes 
-# parsing gtf files
-# NC_007175.2     StringTie       transcript      1       1623    1000    +       .       gene_id "MSTRG.1"; transcript_id "gene39493"; gene_name "COX1"; ref_gene_id "gene39493";
-# NC_007175.2     StringTie       exon    1       1623    1000    +       .       gene_id "MSTRG.1"; transcript_id "gene39493"; exon_number "1"; gene_name "COX1"; ref_gene_id "gene39493";
-# NC_007175.2     StringTie       transcript      80      358     1000    -       .       gene_id "MSTRG.2"; transcript_id "MSTRG.2.1";
-gtf_dict = {}  # { 'gene_id' : [{ 'ref_gene_id':"", 'transcript_id':""}]}
+def read_gff_file(gff_file):
+    """
+    Reads the gff file given the file name
+    returns: gff_ID_dict, gff_Parent_dict
+        gff_ID_dict
+        { "ID" : [ {"Parent": "", "ID": I , type": T, "product": pd} ]}
+        gff_Parent_dict
+        { "Parent" : [ {"Parent": P, "ID": I, "type": T, "product": pd} ]}
+    """
 
-with open("/tmp/sanitized_gtf", "w") as sanitized_gtf:
-    gtf_file = '/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2016/genome/transcriptome/transcriptome/design1/stringtie_merged.gtf'
+    with open("/tmp/sanitized_gff", "w") as sanitized_gff:
+        get_transcripts_script = os.path.join(os.path.dirname(__file__), "get_gff_annotations.awk")
+        subprocess.check_call(["awk", "-f", get_transcripts_script, gff_file], stdout=sanitized_gff)
 
-    get_transcripts_script = os.path.join(os.path.dirname(__file__), "get_transcripts.awk")
-    subprocess.check_call(["awk", "-f", get_transcripts_script, gtf_file], stdout=sanitized_gtf)
+    gff_ID_dict = {}
+    gff_Parent_dict = {}
 
-
-reader = csv.DictReader(open("/tmp/sanitized_gtf"), dialect="excel-tab")
-# sanitized_gtf is a file of 3 columns
-# gene_id transcript_id ref_gene_id .. ref_gene_id can be empty
-for line in reader:
-    gene_id = line["gene_id"].strip('"') 
-    transcript_id = line["transcript_id"].strip('"') 
-    ref_gene_id = line["ref_gene_id"].strip('"') 
-
-    if gene_id in gtf_dict:
-        gtf_dict[gene_id].append({'ref_gene_id' : ref_gene_id, 'transcript_id': transcript_id})
-    else:
-        gtf_dict[gene_id] = [{'ref_gene_id' : ref_gene_id, 'transcript_id': transcript_id}]
-print "Created sanitized gtf data genes =", len(gtf_dict), "entries =", sum(len(entries) for entries in gtf_dict.values())
-
-for gene_id in gtf_dict:
-    gene_id_rows = [ row for row in gtf_dict[gene_id] if row['ref_gene_id'] ]
-    if gene_id_rows:
-        ref_gene_ids = { row["ref_gene_id"] for row in gene_id_rows }
-        gtf_dict[gene_id] = []
-        for rgi in ref_gene_ids:
-            gtf_dict[gene_id].append({'ref_gene_id': rgi, "transcript_id" : ''})
-    else:
-        transcript_id_rows = [ row for row in gtf_dict[gene_id]
-                                if row['transcript_id'] and not row['transcript_id'].startswith("MSTRG") ]
-        if transcript_id_rows:
-            gtf_dict[gene_id] = transcript_id_rows
+    reader = csv.DictReader(open("/tmp/sanitized_gff"), dialect="excel-tab")
+    for line in reader:
+        ID, Parent, product, type = line["ID"], line["Parent"], line["product"], line["type"]
+        if Parent:
+            gff_Parent_dict.setdefault(Parent, []).append(line)
         else:
-            gtf_dict[gene_id] = [ {'transcript_id' : '', 'ref_gene_id' : ''}]
-print "Cross referenced sanitized gtf data genes =", len(gtf_dict), "entries =", sum(len(entries) for entries in gtf_dict.values())
-        
-# gtf dictionary
-# { "gene_id" : [  {"transcript_id" : T, ref_gene_id : R}
-#                       where if R is "na" there could be one or more T entries that are valid
-#                             if R is not "na" there could be one or more R entries for a gene_id (transcript_id will be "na" for such)
-#                             else there will be 1 entry in this list, with both "na"
-#                ]}
-
-with open("/tmp/sanitized_gff", "w") as sanitized_gff:
-    gff_file = '/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2016/genome/transcriptome/transcriptome/files/ref_C_virginica-3.0_top_level.gff3'
-
-    get_transcripts_script = os.path.join(os.path.dirname(__file__), "get_gff_annotations.awk")
-    subprocess.check_call(["awk", "-f", get_transcripts_script, gff_file], stdout=sanitized_gff)
-
-
-gff_ID_dict = {}
-gff_Parent_dict = {}
-
-reader = csv.DictReader(open("/tmp/sanitized_gff"), dialect="excel-tab")
-for line in reader:
-    ID, Parent, product, type = line["ID"], line["Parent"], line["product"], line["type"]
-    if Parent:
-        gff_Parent_dict.setdefault(Parent, []).append(line)
-    else:
-        gff_ID_dict[ID] = [line]
-print "Created cross referenced gff genes ID entries =", len(gff_ID_dict), ", Parent entries =", len(gff_Parent_dict)
+            gff_ID_dict[ID] = [line]
+    print "Created cross referenced gff genes ID entries =", len(gff_ID_dict), ", Parent entries =", len(gff_Parent_dict)
+    return gff_ID_dict, gff_Parent_dict
      
-# gff_ID_dict
-# { "ID" : [ {"Parent": "", "ID": I , type": T, "product": pd} ]}
-# gff_Parent_dict
-# { "Parent" : [ {"Parent": P, "ID": I, "type": T, "product": pd} ]}
+def combine_gtf_gff(gtf_dict, gff_ID_dict, gff_Parent_dict):
+    """
+     combine / join gff and gtf
 
-# combine / join gff and gtf
+     at this point, gtf_dict will look like
+     {
+        'gene1' : [
+                       {'ref_gene_id" : "r1", "transcript_id": ""}      # if ref_gene_id is set, transcript_id will always be empty
+                       {'ref_gene_id" : "r2", "transcript_id": ""}      # if ref_gene_id is set, transcript_id will always be empty
+                       ... more of the same ...
+                   ],
+        'gene2' : [
+                       {'ref_gene_id" : "", "transcript_id": "t1"}      # if transcript_id is set, ref_gene_id will always be empty
+                       {'ref_gene_id" : "", "transcript_id": "t2"}      
+                       ... more of the same ...
+                   ],
+        'gene3' : [
+                       {'ref_gene_id" : "", "transcript_id": ""}      # Exactly 1 item in this list with both ref_gene_id and transcript_id empty
+                   ]
+     }
+    returns: a "joint" gtf-gff dict
+    """
+    gtf_join_gff = {}
+    for gene_id, row in gtf_dict.items():
+        for gene_anno in row:
+            transcript_id, ref_gene_id = gene_anno["transcript_id"], gene_anno["ref_gene_id"]
+            infos = []
+            if ref_gene_id:
+                if ref_gene_id in gff_Parent_dict:
+                    infos = gff_Parent_dict[ref_gene_id]
+            elif transcript_id:
+                if transcript_id in gff_ID_dict:
+                    infos = gff_ID_dict[transcript_id]
+            else:
+                infos = [{"Parent" : None, "ID":None, "type":None, "product":None}]
 
-# at this point, gtf_dict will look like
-# {
-#    'gene1' : [
-#                   {'ref_gene_id" : "r1", "transcript_id": ""}      # if ref_gene_id is set, transcript_id will always be empty
-#                   {'ref_gene_id" : "r2", "transcript_id": ""}      # if ref_gene_id is set, transcript_id will always be empty
-#                   ... more of the same ...
-#               ],
-#    'gene2' : [
-#                   {'ref_gene_id" : "", "transcript_id": "t1"}      # if transcript_id is set, ref_gene_id will always be empty
-#                   {'ref_gene_id" : "", "transcript_id": "t2"}      
-#                   ... more of the same ...
-#               ],
-#    'gene3' : [
-#                   {'ref_gene_id" : "", "transcript_id": ""}      # Exactly 1 item in this list with both ref_gene_id and transcript_id empty
-#               ]
-# }
-gtf_join_gff = {}
-for gene_id, row in gtf_dict.items():
-    for gene_anno in row:
-        transcript_id, ref_gene_id = gene_anno["transcript_id"], gene_anno["ref_gene_id"]
-        infos = []
-        if ref_gene_id:
-            if ref_gene_id in gff_Parent_dict:
-                infos = gff_Parent_dict[ref_gene_id]
-        elif transcript_id:
-            if transcript_id in gff_ID_dict:
-                infos = gff_ID_dict[transcript_id]
+            for info in infos:
+                gtf_join_gff.setdefault(gene_id, []).append({"ref_gene_id":ref_gene_id,
+                                "transcript_id":transcript_id, "type":info["type"], "product":info["product"]})
+    return gtf_join_gff
+
+def write_gtf_join_gff_to_file(gtf_join_gff, csv_file_name):
+    writer = csv.DictWriter(file(csv_file_name, "w"), ["gene_id", "ref_gene_id", "transcript_id", "type", "product"])
+    writer.writeheader()
+    ix = 0
+    for gene_id, rows in gtf_join_gff.items():
+        ix += len(rows)
+        for row in rows:
+            line = row.copy()
+            line['gene_id'] = gene_id
+            writer.writerow(line)
+    print "Generated gtf-join-gff data base of", len(gtf_join_gff), "genes, with", ix, "total entries"
+
+def join_with_gtf_join_gff_dict(blast_dict, gtf_join_gff):
+    """
+    Join the blast_dict and gtf_join_gff dicts
+    """
+    blast_join = {}
+    ix = 0
+    for bgene_id in blast_dict:
+        if bgene_id in gtf_join_gff:
+            ix += len(gtf_join_gff[bgene_id])
+            for row in gtf_join_gff[bgene_id]:
+                row = row.copy()
+                row["description"] = blast_dict[bgene_id]
+                blast_join.setdefault(bgene_id, []).append(row)
         else:
-            infos = [{"Parent" : None, "ID":None, "type":None, "product":None}]
+            ix += 1
+            blast_join[bgene_id] = [{"ref_gene_id":None, "transcript_id":None, "type":None, "product":None, "description":blast_dict[bgene_id]}]
+    print "Generated gtf-join-gff-join-blast data base of", len(blast_join), "genes, with", ix, "total entries"
+    return blast_join
 
-        for info in infos:
-            gtf_join_gff.setdefault(gene_id, []).append({"ref_gene_id":ref_gene_id,
-                            "transcript_id":transcript_id, "type":info["type"], "product":info["product"]})
+def write_blast_join_dict_to_csv(blast_join, csv_file):
+    writer = csv.DictWriter(csv_file, ["gene_id", "ref_gene_id", "transcript_id", "type", "product", "description"])
+    writer.writeheader()
+    for gene_id, rows in blast_join.items():
+        for row in rows:
+            line = row.copy()
+            line['gene_id'] = gene_id
+            writer.writerow(line)
 
-writer = csv.DictWriter(file("/tmp/gtf_join_gff.csv", "w"), ["gene_id", "ref_gene_id", "transcript_id", "type", "product"])
-writer.writeheader()
-ix = 0
-for gene_id, rows in gtf_join_gff.items():
-    ix += len(rows)
-    for row in rows:
-        line = row.copy()
-        line['gene_id'] = gene_id
-        writer.writerow(line)
-print "Generated gtf-join-gff data base of", len(gtf_join_gff), "genes, with", ix, "total entries"
-
-blast_join = {}
-ix = 0
-for bgene_id in blast_dict:
-    if bgene_id in gtf_join_gff:
-        ix += len(gtf_join_gff[bgene_id])
-        for row in gtf_join_gff[bgene_id]:
-            row = row.copy()
-            row["description"] = blast_dict[bgene_id]
-            blast_join.setdefault(bgene_id, []).append(row)
+def get_gtf_join_gff_dict(gtf_file, gff_file, gtf_join_gff_json_file):
+    gtf_join_gff = {}
+    if gtf_join_gff_json_file is not None:
+        gtf_join_gff = json.load(gtf_join_gff_json_file)
     else:
-        ix += 1
-        blast_join[bgene_id] = [{"ref_gene_id":None, "transcript_id":None, "type":None, "product":None, "description":blast_dict[bgene_id]}]
-print "Generated gtf-join-gff-join-blast data base of", len(blast_join), "genes, with", ix, "total entries"
+        if gtf_file is None:
+            print "Using default gtf file", default_gtf_file
+            gtf_file = default_gtf_file
+        else:
+            gtf_file = gtf_file.name
 
-writer = csv.DictWriter(file("/tmp/blast_join.csv", "w"), ["gene_id", "ref_gene_id", "transcript_id", "type", "product", "description"])
-writer.writeheader()
-for gene_id, rows in blast_join.items():
-    for row in rows:
-        line = row.copy()
-        line['gene_id'] = gene_id
-        writer.writerow(line)
+        if gff_file is None:
+            print "Using default gff file", default_gff_file
+            gff_file = default_gff_file
+        else:
+            gff_file = gff_file.name
+
+        gtf_dict = read_gtf_file(gtf_file)
+        gff_ID_dict, gff_Parent_dict = read_gff_file(gff_file)
+
+        gtf_join_gff = combine_gtf_gff(gtf_dict, gff_ID_dict, gff_Parent_dict)    
+        print "Writing gtf_join_gff as a json to /tmp/gff_join_gff.json"
+        json.dump(gtf_join_gff, open("/tmp/gtf_join_gff.json", "w"), indent=2)
+
+    write_gtf_join_gff_to_file(gtf_join_gff, "/tmp/gtf_join_gff.csv")
+    return gtf_join_gff
+    
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--gtf-join-gff-json-file", type=argparse.FileType("r"), help="the json file w/ gtf-join-gff data")
+    parser.add_argument("--gtf-file", type=argparse.FileType("r"), help="The gtf tsv file (default:{})".format(default_gtf_file))
+    parser.add_argument("--gff-file", type=argparse.FileType("r"), help="The gff tsv file (default: {})".format(default_gff_file))
+
+    parser.add_argument("--blast-file", type=argparse.FileType("r"), required=True, help="The blast tsv file")
+
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--blast-file-has-description", action="store_true", help="The blast file has a Description column (default)")
+    group.add_argument("--no-blast-file-description", action="store_false", help="The blast file does not have a Description column")
+
+    parser.add_argument("--out-file", type=argparse.FileType("w"), required=True, help="The output tsv file (default: stdout)")
+
+    args = parser.parse_args()
+
+    # prep stage
+    gtf_join_gff = get_gtf_join_gff_dict(args.gtf_file, args.gff_file, args.gtf_join_gff_json_file)
+    # read blast file
+    blast_dict = read_blast_file(args.blast_file, args.blast_file_has_description)
+
+    # do the join
+    blast_join = join_with_gtf_join_gff_dict(blast_dict, gtf_join_gff)
+    write_blast_join_dict_to_csv(blast_join, args.out_file)
