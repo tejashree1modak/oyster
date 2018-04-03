@@ -21,6 +21,7 @@ if __name__ == '__main__':
 
     first = bi = None
     for fl in sorted(args.files, key=get_sort_key):
+        print "Processing file", fl.name
         tree = ET.parse(fl)
         if first is None:
             first = tree

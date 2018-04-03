@@ -69,7 +69,7 @@ fi
 
 # 6) update the annotations
 # and then validate the unique annotations
-awk -F '"' ' { if ($1 ~ /^>/) { printf ">%s_%s\n", $2, $4 } else { print } } ' ${OUT_PFX}.fa.out > ${OUT_PFX}.fa
+awk -F '"' ' { if ($1 ~ /^>/) { a=gensub(/.*:([0-9]+)-([0-9]+).*/, "\\1_\\2", $NF); printf ">%s_%s_%s\n", $2, $4, a } else { print } } ' ${OUT_PFX}.fa.out > ${OUT_PFX}.fa
 echo -n "Validating ${OUT_PFX}.fa ... "
 if [ "$( grep '^>' ${OUT_PFX}.fa | sort | uniq -c | awk '$1 > 1' | wc -l | awk '{print $1}' )" -gt 0 ]; then
     echo "WARNING: Duplicate entries in ${OUT_PFX}.fa"
@@ -78,4 +78,4 @@ else
 fi
     
 # 7) use genome tools
-gt sequniq --force -o ${OUT_PFX}.unique.fa ${OUT_PFX}.fa
+gt sequniq --force -o ${OUT_PFX}_unique.fa ${OUT_PFX}.fa

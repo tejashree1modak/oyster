@@ -1,74 +1,68 @@
 #!/usr/bin/env python
-import subprocess
 import multiprocessing
 import logging
 import argparse
-import re
+import os
 import time
-
+import random
 logging.basicConfig(level=logging.INFO)
 
-def run(cmd):
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-    out = p.communicate()[0]
+def slack_message(msg):
+    logging.info("%s", msg)
+    #os.system(r"source %s/slack.sh;post_slack_message cluster-jobs "'%s'" jsubmit" % 
+            #(os.path.dirname(__file__), msg))
 
-    result = out.strip()
-    return p.returncode, result
-
-def run_slurm(array_id, script, args):
-    cmd = ["sbatch", "--exclusive", "-a", str(array_id), script] + list(args)
-    rc, result = run(cmd)
-    if rc == 0:
-        match = re.search(r'Submitted\s+batch\s+job\s+(\d+)', result.strip())
-        if match:
-            logging.info("Job %s submitted (%s)", match.group(1), cmd)
-            return match.group(1) 
-        else:
-            logging.error("Couldn't parse %s", result.strip())
-    else:
-        logging.error("Error running %s", cmd)
-    return None
-
-def slurm_job_done(array_id, job_id):
-    cmd = ["squeue", "-r", "-j", "%s_%s" % (job_id, array_id), "-h", "-o", "%A"]
-    rc, result = run(cmd)
-    if rc == 0:
-        done = not result.strip()
-        logging.info("job %s_%s, done = %s (%s)", job_id, array_id, done, result.strip())
-        return done
-    else:
-        logging.error("Error running %s", cmd)
-    return False
-
-def run_job(arguments):
-    array_id, script, args = arguments
-    logging.info("Running %s %s", array_id, script)
-    job_id = run_slurm(array_id, script, args)
-    if job_id is not None:
-        time.sleep(10)
-        done = slurm_job_done(array_id, job_id)
-        while not done:
-            time.sleep(5)
-            done = slurm_job_done(array_id, job_id)
-        logging.info("%s - done", arguments)
-    else:
-        logging.error("Didn't get job id: %s %s", array_id, script)
-
+def run_job(array_id, script):
+    cmd = "sbatch -W -x n042 --exclusive -a %s %s" % (array_id, script)
+    slack_message("Running '%s'" % cmd)
+    rc = os.system(cmd)
+    if rc != 0: # if cmd runs successfully, rc is 0
+        slack_message("Error running %s" % cmd)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--start', metavar='S', type=int, help='Starting array id', required=True)
-    parser.add_argument('-e', '--end', metavar='E', type=int, help='Ending array id', required=True)
+    parser.add_argument('-a', metavar='1,2,3-5,7,19-30', help='The array IDs', required=True)
     parser.add_argument('-n', '--parallel', metavar='N', type=int, help='Number of jobs to run in parallel', required=True)
     parser.add_argument('--script', type=argparse.FileType('r'), help='The script to execute', required=True)
-    parser.add_argument('extra_args', nargs='*', default=[], help='Any additional arguments')
-
     args = parser.parse_args()
 
-    arguments = [ (array_id, args.script.name, args.extra_args) for array_id in range(args.start, args.end+1) ]
-    pool = multiprocessing.Pool(processes=min(args.parallel, len(arguments)))
+    # ids is a list of arrayids that we will generate based on -a specified
+    # on the commandline. The value is comma sperated ids like 1,2,3-5,10 etc
+    # we split on , and then if there is a '-' then split on it to get start,end
+    # else just the number that is specified and append into ids
+    # If we split to get a start and end, then we use range(start,end+1) to create
+    # an array - e.g. 3-5 = range(3,6) -> [3,4,5] which is then added to ids list
+    # finally we sort the ids list in ascending order.
+    ids = []
+    for k in args.a.split(','):
+        if '-' in k:
+            start, end = map(int, k.split('-'))
+            ids += range(start, end+1)
+        else:
+            ids.append(int(k))
+    ids.sort()
 
-    results = pool.map(run_job, arguments)
+    # generate a list of tuples e.g. -a 1,3,4-6 will result in =
+    # [(1,<script>),(3,<Script>),(4,<script>),(5,<script>),(6,<Script>)]
+    arguments = [ (array_id, args.script.name) for array_id in ids ]
 
-    pool.close()
-    pool.join()
+    slots = {}  # a dictionary of <arrayid> -> <running process that is running run_job() function>
+    nprocesses = args.parallel
+
+    while arguments or slots:
+        # if we have the len of slots dict is < nprocesses, then we can stand to add more
+        # array ids and start processes until we have nprocesses running
+        while len(slots) < nprocesses and arguments:
+            array_id, script = arguments.pop(0) # pop removes it from arguments, so eventually it will be empty and 
+            slots[array_id] = multiprocessing.Process(target=run_job, args=(array_id,script))
+            slots[array_id].start()
+
+        time.sleep(10)                 
+
+        # look a each process in slots dictionary. If it is finished, then
+        # delete it from dict. Then when we go around in the loop, we will start
+        # another one in its lieu .. and so on until we exhaust arguments list
+        for array_id, process in slots.items():
+            if not process.is_alive():
+                logging.info("%s is done with %s", array_id, process.exitcode)
+                del slots[array_id]
