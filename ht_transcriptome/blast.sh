@@ -2,6 +2,8 @@
 #SBATCH --job-name="blast"
 #SBATCH --time=9999:00:00
 #SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=20
 #SBATCH --output="des4_5d_trans_blast_out.%A-%a"
 #SBATCH --error="des4_5d_trans_blast_out.%A-%a"
 

@@ -1,8 +1,9 @@
 #!/bin/bash
-#PBS-l nodes=1
-#PBS-l walltime=1000:00:00
-#PBS -j oe
-#PBS -o bbtools_out
+#SBATCH --job-name="bbtools"
+#SBATCH --time=9999:00:00
+#SBATCH --nodes=1
+#SBATCH --output="bbtools_trans2017_2_out.%A-%a"
+#SBATCH --error="bbtools_trans2017_2_out.%A-%a"
 
 # This script processes SRA PE end reads with BBtools to find adaptor sequences
 #  with BBmerge, and then uses these for adaptor trimming and quality trimming with bbduk.sh.
@@ -12,8 +13,8 @@ echo "START $(date)"
 module load BBMap/37.36-foss-2016b-Java-1.8.0_131
 
 project_home="/data3/marine_diseases_lab/tejashree/Bio_project_SRA"
-sra="$project_home/trans2017/Fastq"
-qc="$project_home/qc/trans2017"
+sra="$project_home/trans2017_2/SUB06686"
+qc="$project_home/qc/trans2017_2"
 source $project_home/github/oyster/lib/slack.sh
 
 #all files are in the home directory and either have ending 
@@ -22,45 +23,109 @@ source $project_home/github/oyster/lib/slack.sh
 #changing all the file endings to .fq to see if bbduk.sh prefers that file name ending
 
 #RUN_STEP=stat
-#RUN_STEP=adapter-trim
-RUN_STEP=quality-filter
-#RUN_STEP=stat,adapter-trim
+#RUN_STEP=adapter_trim
+#RUN_STEP=quality_filter
+#RUN_STEP=stat,adapter_trim
+#RUN_STEP=force_trim
 
-me="bbtools::${PBS_JOBNAME}-$RUN_STEP"
+me="bbtools::${SLURM_ARRAY_TASK_ID}-$RUN_STEP"
 
 if [ -z ${RUN_STEP} ] ; then
     # the step to run needs to be specified
-    echo "($PBS_ARRAYID) run step not specified.."
+    echo "($SLURM_ARRAY_TASK_ID) run step not specified.."
     exit 1
 fi
 
+#FILES=(
+#    _
+#    C_K_0_TACAGC
+#    C_M_0_CGGAAT 
+#    C_V_0_CACGAT 
+#    RE_K_6_TCCCGA 
+#    RE_M_6_CTCAGA 
+#    RE_V_6_CATGGC 
+#    RI_K_24_TCGGCA 
+#    RI_K_6_TCATTC 
+#    RI_M_24_TAATCG 
+#    RI_M_6_CTATAC 
+#    RI_V_24_CCAACA 
+#    RI_V_6_CAGGCG 
+#    S4_K_24_TCGAAG 
+#    S4_K_6_TATAAT 
+#    S4_M_24_GACGAC 
+#    S4_M_6_CTAGCT 
+#    S4_V_24_CATTTT 
+#    S4_V_6_CACTCA
+#    )
+
 FILES=(
     _
-    C_K_0_TACAGC
-    C_M_0_CGGAAT 
-    C_V_0_CACGAT 
-    RE_K_6_TCCCGA 
-    RE_M_6_CTCAGA 
-    RE_V_6_CATGGC 
-    RI_K_24_TCGGCA 
-    RI_K_6_TCATTC 
-    RI_M_24_TAATCG 
-    RI_M_6_CTATAC 
-    RI_V_24_CCAACA 
-    RI_V_6_CAGGCG 
-    S4_K_24_TCGAAG 
-    S4_K_6_TATAAT 
-    S4_M_24_GACGAC 
-    S4_M_6_CTAGCT 
-    S4_V_24_CATTTT 
-    S4_V_6_CACTCA
+    C-K-0_L007
+    C-K-0_L008
+    C-M-0_L007
+    C-M-0_L008
+    C-R1_L007
+    C-R1_L008
+    C-R2_L007
+    C-R2_L008
+    C-R3_L008
+    C-V-0_L007
+    C-V-0_L008
+    RE-K-6_L007
+    RE-K-6_L008
+    RE-M-6_L007
+    RE-M-6_L008
+    RE-R1_L007
+    RE-R1_L008
+    RE-R2_L007
+    RE-R2_L008
+    RE-R3_L007
+    RE-R3_L008
+    RE-V-6_L007
+    RE-V-6_L008
+    RI-K-24_L007
+    RI-K-24_L008
+    RI-K-6_L007
+    RI-K-6_L008
+    RI-M-24_L007
+    RI-M-24_L008
+    RI-M-6_L007
+    RI-M-6_L008
+    RIplusRE-R1_L007
+    RIplusRE-R1_L008
+    RIplusRE-R2_L007
+    RIplusRE-R2_L008
+    RIplusRE-R3_L007
+    RIplusRE-R3_L008
+    RI-V-24_L007
+    RI-V-24_L008
+    RI-V-6_L007
+    RI-V-6_L008
+    S4-K-24_L007
+    S4-K-24_L008
+    S4-K-6_L007
+    S4-K-6_L008
+    S4-M-24_L007
+    S4-M-24_L008
+    S4-M-6_L007
+    S4-M-6_L008
+    S4plusRE-R1_L007
+    S4plusRE-R1_L008
+    S4plusRE-R2_L007
+    S4plusRE-R2_L008
+    S4plusRE-R3_L007
+    S4plusRE-R3_L008
+    S4-V-24_L007
+    S4-V-24_L008
+    S4-V-6_L007
+    S4-V-6_L008
     )
 
 # tell system to call post_slack_message
-trap "tail -n 50 bbtools_out-${PBS_ARRAYID} | post_slack_message cluster-jobs - '$me::log'" ERR
+trap "tail -n 50 bbtools_out-${SLURM_ARRAY_TASK_ID} | post_slack_message cluster-jobs - '$me::log'" ERR
 
 if echo "${RUN_STEP}" | grep -qw "stat" ; then
-    left=( $(ls -1 $sra/${FILES[$PBS_ARRAYID]}_1.fastq) )
+    left=( $(ls -1 $sra/${FILES[$SLURM_ARRAY_TASK_ID]}_1.fastq) )
     echo "Starting 'stat'"
     for left_file in ${left[@]}; do  # @ symbol tells it to go through each item in the array  
         left_file_basename=$(basename $left_file)
@@ -103,8 +168,8 @@ fi
 #
 ## Trimming of adaptors found in the previous command
 
-if echo "${RUN_STEP}" | grep -qw "adapter-trim" ; then
-    array3=($(ls -1 ${sra}/${FILES[$PBS_ARRAYID]}_1.fastq))
+if echo "${RUN_STEP}" | grep -qw "adapter_trim" ; then
+    array3=($(ls -1 ${sra}/${FILES[$SLURM_ARRAY_TASK_ID]}_1.fastq))
     echo "Starting adaptor trim"
     for left_file in ${array3[@]}; do  # @ symbol tells it to go through each item in the array
         right_file=$(echo ${left_file}|sed s/_1/_2/)
@@ -158,10 +223,10 @@ fi
 
 # ------------------------------------------------------------------------------------------
 
-if echo "${RUN_STEP}" | grep -qw "quality-filter" ; then
+if echo "${RUN_STEP}" | grep -qw "quality_filter" ; then
     ##array5=($(ls -1 ${qc}/*_1.trim))
     #array5=( ${qc}/SRR5357626_1.trim  )
-    array5=($(ls -1 ${qc}/${FILES[$PBS_ARRAYID]}_1.adp))
+    array5=($(ls -1 ${qc}/${FILES[$SLURM_ARRAY_TASK_ID]}_1.adp))
     #suffix=ftl
     suffix=fq
     
@@ -183,23 +248,37 @@ if echo "${RUN_STEP}" | grep -qw "quality-filter" ; then
     echo "Done quality filtering"
 fi
 
-#trim first 10 bases 
-#echo "Starting trim first 10"
-#array6=($(ls -1 ${qc}/*_1.ftl))
-#array6=($(ls -1 ${qc}/SRR5357619_1.ftl))
-#for left_file in ${array6[@]}; do
-#    right_file=$(echo ${left_file}|sed s/_1/_2/)
-#    echo starting bbduk.sh in1=${left_file}  out1=${left_file%.ftl}.ftm10 \
-#             in2=${right_file} out2=${right_file%.ftl}.ftm10 ftl=10
-#    if [ "$debug" ]; then
-#        touch ${left_file%.ftl}.ftm10 ${right_file%.ftl}.ftm10 
-#    else
-#        bbduk.sh in1=${left_file}  out1=${left_file%.ftl}.ftm10 \
-#             in2=${right_file} out2=${right_file%.ftl}.ftm10 ftl=10
-#    fi
-#    echo done
-#done 
-#echo "Done trim first 10"
+# ------------------------------------------------------------------------------------------
+
+if echo "${RUN_STEP}" | grep -qw "force_trim" ; then
+    #trim first 10 bases 
+    #echo "Starting trim first 10"
+    echo "Starting trim last 10"
+    in_suffix=adp
+    out_suffix=fq
+
+    array6=($(ls -1 ${qc}/${FILES[$SLURM_ARRAY_TASK_ID]}_1.${in_suffix}))
+    for left_file in ${array6[@]}; do
+        right_file=$(echo ${left_file}|sed s/_1/_2/)
+        # This is how it was done before ! 
+        # echo starting bbduk.sh in1=${left_file}  out1=${left_file%.ftl}.ftm10 \
+        #         in2=${right_file} out2=${right_file%.ftl}.ftm10 ftl=10
+        echo starting bbduk.sh in1=${left_file}  out1=${left_file%.${in_suffix}}.${out_suffix} \
+                 in2=${right_file} out2=${right_file%.${in_suffix}}.${out_suffix} ftr=115
+        if [ "$debug" ]; then
+            touch ${left_file%.ftl}.${out_suffix} ${right_file%.${in_suffix}}.${out_suffix} 
+        else
+            # this is how it was done before !
+            # bbduk.sh in1=${left_file}  out1=${left_file%.ftl}.ftm10 \
+            #     in2=${right_file} out2=${right_file%.ftl}.ftm10 ftl=10
+            bbduk.sh in1=${left_file}  out1=${left_file%.${in_suffix}}.${out_suffix} \
+                 in2=${right_file} out2=${right_file%.${in_suffix}}.${out_suffix} ftr=115
+        fi
+        echo done
+    done 
+    #echo "Done trim first 10"
+    echo "Done trim last 10"
+fi
 ##
 #echo "Starting remove read less than 25bp"
 ##remove reads less than 25bp long 

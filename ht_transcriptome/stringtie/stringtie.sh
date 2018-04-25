@@ -1,8 +1,11 @@
 #!/bin/bash
-#PBS -l nodes=1
-#PBS -l walltime=1000:00:00
-#PBS -j oe
-#PBS -o stringtie_out
+#SBATCH --job-name="stringtie"
+#SBATCH --time=9999:00:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=20
+#SBATCH --output="stringtie_trans2017_final_out.%A-%a"
+#SBATCH --error="stringtie_trans2017_final_out.%A-%a"
 
 set -e
 echo "START" $(date)
@@ -24,40 +27,76 @@ echo "modules loaded"
 
 project_home=/data3/marine_diseases_lab/tejashree/Bio_project_SRA
 stringtie=${project_home}/stringtie
-hisat2_out=${project_home}/hisat2/cvir/test
+hisat2_out=${project_home}/hisat2/cvir/test/
 cvir_genome=${project_home}/cvir_genome
 hisat2=${project_home}/hisat2
 hisat_cvir=${hisat2}/cvir
+bam_files=${project_home}/hisat2/trim5/trans2017_final/cvir
 cd ${stringtie}/test
 
 source $project_home/github/oyster/lib/slack.sh
 
 
-FILES=( _ SRR5357619 SRR5357620 SRR5357623 SRR5357624 SRR5357625 SRR5357626 )
+#FILES=( _ SRR5357619 SRR5357620 SRR5357623 SRR5357624 SRR5357625 SRR5357626 )
+FILES=( 
+    _ 
+    C_K_0
+    C_M_0
+    C_V_0
+    C_R1
+    C_R2
+    C_R3
+    RE_K_6
+    RE_M_6
+    RE_V_6
+    RE_R1
+    RE_R2
+    RE_R3
+    RI_K_24
+    RI_K_6
+    RI_M_24
+    RI_M_6
+    RI_V_24
+    RI_V_6
+    RIplusRE_R1
+    RIplusRE_R2
+    RIplusRE_R3
+    S4_K_24
+    S4_K_6
+    S4_M_24
+    S4_M_6
+    S4_V_24
+    S4_V_6
+    S4plusRE_R1
+    S4plusRE_R2
+    S4plusRE_R3
+    )
+
 #RUN_STEP=assembly
 #RUN_STEP=merge
 #RUN_STEP=compare
 #RUN_STEP=reestimate
-RUN_STEP=deseq
+#RUN_STEP=deseq
 
-me="stringtie::${PBS_JOBNAME}-$RUN_STEP"
+me="stringtie::${SBATCH_JOB_NAME}-${SLURM_ARRAY_TASK_ID}::$RUN_STEP on $HOSTNAME"
 
 if [ -z ${RUN_STEP} ] ; then
     # the step to run needs to be specified
-    echo "($PBS_ARRAYID) run step not specified.."
+    echo "($SLURM_ARRAY_TASK_ID) run step not specified.."
     exit 1
 fi
 
 # tell system to call post_slack_message
-trap "tail -n 50 stringtie_out-${PBS_ARRAYID} | post_slack_message cluster-jobs - '$me::log'" ERR
+trap "tail -n 50 stringtie_out-${SLURM_ARRAY_TASK_ID} | post_slack_message cluster-jobs - '$me::log'" ERR
 
 ## ------------------------------------------------------------------------------------------
 # StringTie to assemble transcripts for each sample with the GFF3 annotation file
 if [ "${RUN_STEP}" == "assembly" ] ; then
-    array1=($(ls -1 ${hisat_cvir}/test/${FILES[$PBS_ARRAYID]}.bam))
+    #array1=($(ls -1 ${hisat_cvir}/test/${FILES[$SLURM_ARRAY_TASK_ID]}.bam))
+    array1=($(ls -1 ${bam_files}/${FILES[$SLURM_ARRAY_TASK_ID]}.bam))
     if [ "${#array1[@]}" == "0" ]; then
-        echo "($PBS_ARRAYID) ERROR: No input files matching '${hisat_cvir}/test/${FILES[$PBS_ARRAYID]}.bam'"
-        post_slack_message cluster-jobs "ERROR: No input files matching '${hisat_cvir}/test/${FILES[$PBS_ARRAYID]}.bam'" "$me"
+        echo "($SLURM_ARRAY_TASK_ID) ERROR: No input files matching '${bam_files}/${FILES[$SLURM_ARRAY_TASK_ID]}.bam'"
+        post_slack_message cluster-jobs "ERROR: No input files matching '${bam_files}/${FILES[$SLURM_ARRAY_TASK_ID]}.bam'" "$me"
         exit 1
     fi
 
@@ -66,13 +105,15 @@ if [ "${RUN_STEP}" == "assembly" ] ; then
     for i in ${array1[@]}; do
         base=$(basename $i)
         echo stringtie -G ${cvir_genome}/ref_C_virginica-3.0_top_level.gff3 \
-                  -o $stringtie/test/${i%.bam}.gtf -p 10 -l ${base%.bam} ${i}
-        post_slack_message cluster-jobs "stringtie -G ${cvir_genome}/ref_C_virginica-3.0_top_level.gff3 -o $stringtie/test/${i%.bam}.gtf -p 10 -l ${base%.bam} ${i}" "$me"
+                  -o $stringtie/test/trans2017_final/${base%.bam}.gtf -p 10 -l ${base%.bam} ${i}
+        post_slack_message cluster-jobs "stringtie -G ${cvir_genome}/ref_C_virginica-3.0_top_level.gff3 -o $stringtie/test/trans2017_final/${base%.bam}.gtf -p 10 -l ${base%.bam} ${i}" "$me"
         if [ "$debug" ]; then
             touch ${i%.bam}.gtf 
         else
+            #stringtie -G ${cvir_genome}/ref_C_virginica-3.0_top_level.gff3 \
+            #  -o $stringtie/test/${base%.bam}.gtf -l ${base%.bam} -p 10 ${i}
             stringtie -G ${cvir_genome}/ref_C_virginica-3.0_top_level.gff3 \
-              -o $stringtie/test/${base%.bam}.gtf -l ${base%.bam} -p 10 ${i}
+              -o $stringtie/test/trans2017_final/${base%.bam}.gtf -l ${base%.bam} -p 10 ${i}
         fi
         echo done
         post_slack_message cluster-jobs "done" "$me.$base"
@@ -122,10 +163,10 @@ fi
 #Re-estimate transcript abundance after merge step
 
 if [ "${RUN_STEP}" == "reestimate" ] ; then
-    array1=($(ls -1 ${hisat_cvir}/test/${FILES[$PBS_ARRAYID]}.bam))
+    array1=($(ls -1 ${hisat_cvir}/test/${FILES[$SLURM_ARRAY_TASK_ID]}.bam))
     if [ "${#array1[@]}" == "0" ]; then
-        echo "($PBS_ARRAYID) ERROR: No input files matching '${hisat_cvir}/test/${FILES[$PBS_ARRAYID]}.bam'"
-        post_slack_message cluster-jobs "ERROR: No input files matching '${hisat_cvir}/test/${FILES[$PBS_ARRAYID]}.bam'" "$me"
+        echo "($SLURM_ARRAY_TASK_ID) ERROR: No input files matching '${hisat_cvir}/test/${FILES[$SLURM_ARRAY_TASK_ID]}.bam'"
+        post_slack_message cluster-jobs "ERROR: No input files matching '${hisat_cvir}/test/${FILES[$SLURM_ARRAY_TASK_ID]}.bam'" "$me"
         exit 1
     fi
     
