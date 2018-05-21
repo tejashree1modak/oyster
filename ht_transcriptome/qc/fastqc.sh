@@ -2,8 +2,8 @@
 #SBATCH --job-name="fastqc"
 #SBATCH --time=9999:00:00
 #SBATCH --nodes=1
-#SBATCH --output="fastqc_trans2017_2_out.%A-%a"
-#SBATCH --error="fastqc_trans2017_2_out.%A-%a"
+#SBATCH --output="fastqc_CR3_out.%A-%a"
+#SBATCH --error="fastqc_CR3_out.%A-%a"
 
 set -e 
 echo "START $(date)"
@@ -13,8 +13,10 @@ project_home="/data3/marine_diseases_lab/tejashree/Bio_project_SRA"
 sra="$project_home/sra"
 qc="$project_home/qc"
 #fastqc="$qc/fastqc"
-trans2017="$project_home/qc/trans2017_2"
-fastqc="$trans2017/fastqc"
+#trans2017="$project_home/qc/trans2017_2"
+#fastqc="$trans2017/fastqc"
+CR3="$project_home/qc/CR3"
+fastqc=$CR3/fastqc
 source $project_home/github/oyster/lib/slack.sh
 
 cd $fastqc
@@ -43,74 +45,80 @@ cd $fastqc
 #    S4_V_6_CACTCA
 #    )
 
+#files=(
+#    _
+#    C-K-0_L007
+#    C-K-0_L008
+#    C-M-0_L007
+#    C-M-0_L008
+#    C-R1_L007
+#    C-R1_L008
+#    C-R2_L007
+#    C-R2_L008
+#    C-R3_L008
+#    C-V-0_L007
+#    C-V-0_L008
+#    RE-K-6_L007
+#    RE-K-6_L008
+#    RE-M-6_L007
+#    RE-M-6_L008
+#    RE-R1_L007
+#    RE-R1_L008
+#    RE-R2_L007
+#    RE-R2_L008
+#    RE-R3_L007
+#    RE-R3_L008
+#    RE-V-6_L007
+#    RE-V-6_L008
+#    RI-K-24_L007
+#    RI-K-24_L008
+#    RI-K-6_L007
+#    RI-K-6_L008
+#    RI-M-24_L007
+#    RI-M-24_L008
+#    RI-M-6_L007
+#    RI-M-6_L008
+#    RIplusRE-R1_L007
+#    RIplusRE-R1_L008
+#    RIplusRE-R2_L007
+#    RIplusRE-R2_L008
+#    RIplusRE-R3_L007
+#    RIplusRE-R3_L008
+#    RI-V-24_L007
+#    RI-V-24_L008
+#    RI-V-6_L007
+#    RI-V-6_L008
+#    S4-K-24_L007
+#    S4-K-24_L008
+#    S4-K-6_L007
+#    S4-K-6_L008
+#    S4-M-24_L007
+#    S4-M-24_L008
+#    S4-M-6_L007
+#    S4-M-6_L008
+#    S4plusRE-R1_L007
+#    S4plusRE-R1_L008
+#    S4plusRE-R2_L007
+#    S4plusRE-R2_L008
+#    S4plusRE-R3_L007
+#    S4plusRE-R3_L008
+#    S4-V-24_L007
+#    S4-V-24_L008
+#    S4-V-6_L007
+#    S4-V-6_L008
+#    )
+
 files=(
-    _
-    C-K-0_L007
-    C-K-0_L008
-    C-M-0_L007
-    C-M-0_L008
-    C-R1_L007
-    C-R1_L008
-    C-R2_L007
-    C-R2_L008
-    C-R3_L008
-    C-V-0_L007
-    C-V-0_L008
-    RE-K-6_L007
-    RE-K-6_L008
-    RE-M-6_L007
-    RE-M-6_L008
-    RE-R1_L007
-    RE-R1_L008
-    RE-R2_L007
-    RE-R2_L008
-    RE-R3_L007
-    RE-R3_L008
-    RE-V-6_L007
-    RE-V-6_L008
-    RI-K-24_L007
-    RI-K-24_L008
-    RI-K-6_L007
-    RI-K-6_L008
-    RI-M-24_L007
-    RI-M-24_L008
-    RI-M-6_L007
-    RI-M-6_L008
-    RIplusRE-R1_L007
-    RIplusRE-R1_L008
-    RIplusRE-R2_L007
-    RIplusRE-R2_L008
-    RIplusRE-R3_L007
-    RIplusRE-R3_L008
-    RI-V-24_L007
-    RI-V-24_L008
-    RI-V-6_L007
-    RI-V-6_L008
-    S4-K-24_L007
-    S4-K-24_L008
-    S4-K-6_L007
-    S4-K-6_L008
-    S4-M-24_L007
-    S4-M-24_L008
-    S4-M-6_L007
-    S4-M-6_L008
-    S4plusRE-R1_L007
-    S4plusRE-R1_L008
-    S4plusRE-R2_L007
-    S4plusRE-R2_L008
-    S4plusRE-R3_L007
-    S4plusRE-R3_L008
-    S4-V-24_L007
-    S4-V-24_L008
-    S4-V-6_L007
-    S4-V-6_L008
-    )
+      _
+      C-R3_L003
+      )
+
 # the file prefix for this job is indexing files array by the value of PBS_ARRAYID
 
 me="fastqc::${SLURM_ARRAY_TASK_ID}"
 
 #array=($(ls -1 ${qc}/${files[$PBS_ARRAYID]}_*.fq))
-array=($(ls -1 ${trans2017}/${files[$SLURM_ARRAY_TASK_ID]}_*.fq))
+array=($(ls -1 ${CR3}/${files[$SLURM_ARRAY_TASK_ID]}_*.fq))
 echo "[Job $SLURM_ARRAY_TASK_ID] Starting fastqc on ${array[@]}"
 
 for i in ${array[@]}; do  # @ symbol tells it to go through each item in the array  
