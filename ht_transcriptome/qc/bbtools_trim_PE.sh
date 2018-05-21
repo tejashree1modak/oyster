@@ -2,8 +2,8 @@
 #SBATCH --job-name="bbtools"
 #SBATCH --time=9999:00:00
 #SBATCH --nodes=1
-#SBATCH --output="bbtools_trans2017_2_out.%A-%a"
-#SBATCH --error="bbtools_trans2017_2_out.%A-%a"
+#SBATCH --output="bbtools_CR3_out.%A-%a"
+#SBATCH --error="bbtools_CR3_out.%A-%a"
 
 # This script processes SRA PE end reads with BBtools to find adaptor sequences
 #  with BBmerge, and then uses these for adaptor trimming and quality trimming with bbduk.sh.
@@ -13,8 +13,10 @@ echo "START $(date)"
 module load BBMap/37.36-foss-2016b-Java-1.8.0_131
 
 project_home="/data3/marine_diseases_lab/tejashree/Bio_project_SRA"
-sra="$project_home/trans2017_2/SUB06686"
-qc="$project_home/qc/trans2017_2"
+#sra="$project_home/trans2017_2/SUB06686"
+sra="$project_home/CR3/"
+#qc="$project_home/qc/trans2017_2"
+qc="$project_home/qc/CR3"
 source $project_home/github/oyster/lib/slack.sh
 
 #all files are in the home directory and either have ending 
@@ -58,68 +60,73 @@ fi
 #    S4_V_6_CACTCA
 #    )
 
+#FILES=(
+#    _
+#    C-K-0_L007
+#    C-K-0_L008
+#    C-M-0_L007
+#    C-M-0_L008
+#    C-R1_L007
+#    C-R1_L008
+#    C-R2_L007
+#    C-R2_L008
+#    C-R3_L008
+#    C-V-0_L007
+#    C-V-0_L008
+#    RE-K-6_L007
+#    RE-K-6_L008
+#    RE-M-6_L007
+#    RE-M-6_L008
+#    RE-R1_L007
+#    RE-R1_L008
+#    RE-R2_L007
+#    RE-R2_L008
+#    RE-R3_L007
+#    RE-R3_L008
+#    RE-V-6_L007
+#    RE-V-6_L008
+#    RI-K-24_L007
+#    RI-K-24_L008
+#    RI-K-6_L007
+#    RI-K-6_L008
+#    RI-M-24_L007
+#    RI-M-24_L008
+#    RI-M-6_L007
+#    RI-M-6_L008
+#    RIplusRE-R1_L007
+#    RIplusRE-R1_L008
+#    RIplusRE-R2_L007
+#    RIplusRE-R2_L008
+#    RIplusRE-R3_L007
+#    RIplusRE-R3_L008
+#    RI-V-24_L007
+#    RI-V-24_L008
+#    RI-V-6_L007
+#    RI-V-6_L008
+#    S4-K-24_L007
+#    S4-K-24_L008
+#    S4-K-6_L007
+#    S4-K-6_L008
+#    S4-M-24_L007
+#    S4-M-24_L008
+#    S4-M-6_L007
+#    S4-M-6_L008
+#    S4plusRE-R1_L007
+#    S4plusRE-R1_L008
+#    S4plusRE-R2_L007
+#    S4plusRE-R2_L008
+#    S4plusRE-R3_L007
+#    S4plusRE-R3_L008
+#    S4-V-24_L007
+#    S4-V-24_L008
+#    S4-V-6_L007
+#    S4-V-6_L008
+#    )
+
 FILES=(
-    _
-    C-K-0_L007
-    C-K-0_L008
-    C-M-0_L007
-    C-M-0_L008
-    C-R1_L007
-    C-R1_L008
-    C-R2_L007
-    C-R2_L008
-    C-R3_L008
-    C-V-0_L007
-    C-V-0_L008
-    RE-K-6_L007
-    RE-K-6_L008
-    RE-M-6_L007
-    RE-M-6_L008
-    RE-R1_L007
-    RE-R1_L008
-    RE-R2_L007
-    RE-R2_L008
-    RE-R3_L007
-    RE-R3_L008
-    RE-V-6_L007
-    RE-V-6_L008
-    RI-K-24_L007
-    RI-K-24_L008
-    RI-K-6_L007
-    RI-K-6_L008
-    RI-M-24_L007
-    RI-M-24_L008
-    RI-M-6_L007
-    RI-M-6_L008
-    RIplusRE-R1_L007
-    RIplusRE-R1_L008
-    RIplusRE-R2_L007
-    RIplusRE-R2_L008
-    RIplusRE-R3_L007
-    RIplusRE-R3_L008
-    RI-V-24_L007
-    RI-V-24_L008
-    RI-V-6_L007
-    RI-V-6_L008
-    S4-K-24_L007
-    S4-K-24_L008
-    S4-K-6_L007
-    S4-K-6_L008
-    S4-M-24_L007
-    S4-M-24_L008
-    S4-M-6_L007
-    S4-M-6_L008
-    S4plusRE-R1_L007
-    S4plusRE-R1_L008
-    S4plusRE-R2_L007
-    S4plusRE-R2_L008
-    S4plusRE-R3_L007
-    S4plusRE-R3_L008
-    S4-V-24_L007
-    S4-V-24_L008
-    S4-V-6_L007
-    S4-V-6_L008
-    )
+        _
+        C-R3_L003
+        )
 
 # tell system to call post_slack_message
 trap "tail -n 50 bbtools_out-${SLURM_ARRAY_TASK_ID} | post_slack_message cluster-jobs - '$me::log'" ERR
@@ -255,7 +262,7 @@ if echo "${RUN_STEP}" | grep -qw "force_trim" ; then
     #echo "Starting trim first 10"
     echo "Starting trim last 10"
     in_suffix=adp
-    out_suffix=fq
+    out_suffix=ftm
 
     array6=($(ls -1 ${qc}/${FILES[$SLURM_ARRAY_TASK_ID]}_1.${in_suffix}))
     for left_file in ${array6[@]}; do
@@ -279,23 +286,27 @@ if echo "${RUN_STEP}" | grep -qw "force_trim" ; then
     #echo "Done trim first 10"
     echo "Done trim last 10"
 fi
-##
-#echo "Starting remove read less than 25bp"
-##remove reads less than 25bp long 
-#array7=($(ls -1 ${qc}/*_1.ftm10))
-#array7=($(ls -1 ${qc}/SRR5357626_1.ftm10))
-#for left_file in ${array7[@]}; do
-#    right_file=$(echo ${left_file}|sed s/_1/_2/)
-#    echo bbduk.sh in1=${left_file} out1=${left_file%.ftm10}.fq \
-#         in2=${right_file} out2=${right_file%.ftm10}.fq minlen=25
-#    if [ "$debug" ]; then
-#        touch ${left_file%.ftm10}.fq ${right_file%.ftm10}.fq 
-#    else
-#        bbduk.sh in1=${left_file} out1=${left_file%.ftm10}.fq \
-#             in2=${right_file} out2=${right_file%.ftm10}.fq minlen=25
-#    fi
-#done
-#echo "Done remove read less than 25bp"
+
+##remove reads less than 25bp long
+if echo "${RUN_STEP}" | grep -qw "minlen" ; then
+    echo "Starting remove reads less than 25bp"
+    in_suffix=ftm
+    out_suffix=fq
+    array7=($(ls -1 ${qc}/${FILES[$SLURM_ARRAY_TASK_ID]}_1.${in_suffix}))
+    for left_file in ${array7[@]}; do
+        right_file=$(echo ${left_file}|sed s/_1/_2/)
+        echo bbduk.sh in1=${left_file} out1=${left_file%.ftm}.${out_suffix} \
+             in2=${right_file} out2=${right_file%.ftm}.${out_suffix} minlen=25
+        if [ "$debug" ]; then
+            touch ${left_file%.ftm}.${out_suffix} ${right_file%.ftm}.${out_suffix} 
+        else
+            bbduk.sh in1=${left_file} out1=${left_file%.ftm}.fq \
+                 in2=${right_file} out2=${right_file%.ftm}.fq minlen=25
+        fi
+        echo done
+    done
+    echo "Done remove read less than 25bp"
+fi
 
 #histogram generation
 # for index in ${!array[*]}; do
