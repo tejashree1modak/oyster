@@ -35,7 +35,7 @@ project_home=/data3/marine_diseases_lab/tejashree/Bio_project_SRA/
 cvir_genome=${project_home}/cvir_genome
 bac_genomes=${project_home}/bac_genomes
 hisat2=${project_home}/hisat2
-trans2017=${hisat2}/trim5/trans2017_final/cvir     # for trans 2016, the output files are in ${hisat2}/cvir and ${hisat2}/cvir/test
+trans2017=${hisat2}/trim5/trans2017_final/     # for trans 2016, the output files are in ${hisat2}/cvir and ${hisat2}/cvir/test
 #qc=${project_home}/qc
 qc="$project_home/qc/trans2017_final"
 
@@ -156,8 +156,8 @@ if [ "${RUN_STEP}" == "hisat" ] ; then
 
         #echo starting hisat2 --dta -x ${cvir_genome}/cvir_edited_index -1 ${left_file} -2 ${right_file} -S ${trans2017}/cvir/${file}.sam
         echo starting hisat2 --dta -x ${bac_genomes}/allgenomes_bac_index -1 ${left_file} -2 ${right_file} -S ${trans2017}/bac/${file}.sam
-        post_slack_message cluster-jobs "starting hisat2 --dta -x ${cvir_genome}/cvir_edited_index -1 ${left_file} -2 ${right_file} -S ${trans2017}/cvir/${file}.sam" "${me}.${file}"
-        #post_slack_message cluster-jobs "starting hisat2 --dta -x ${bac_genomes}/allgenomes_bac_index -1 ${left_file} -2 ${right_file} -S ${trans2017}/bac/${file}.sam" "${me}.${file}"
+        #post_slack_message cluster-jobs "starting hisat2 --dta -x ${cvir_genome}/cvir_edited_index -1 ${left_file} -2 ${right_file} -S ${trans2017}/cvir/${file}.sam" "${me}.${file}"
+        post_slack_message cluster-jobs "starting hisat2 --dta -x ${bac_genomes}/allgenomes_bac_index -1 ${left_file} -2 ${right_file} -S ${trans2017}/bac/${file}.sam" "${me}.${file}"
         if [ "$debug" ] ; then
             touch ${trans2017}/bac/${file}.sam
         else
