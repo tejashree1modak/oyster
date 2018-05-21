@@ -32,7 +32,7 @@ cvir_genome=${project_home}/cvir_genome
 hisat2=${project_home}/hisat2
 hisat_cvir=${hisat2}/cvir
 bam_files=${project_home}/hisat2/trim5/trans2017_final/cvir
-cd ${stringtie}/test
+cd ${stringtie}/test/trans2017_final
 
 source $project_home/github/oyster/lib/slack.sh
 
@@ -139,7 +139,7 @@ fi
 if [ "${RUN_STEP}" == "merge" ] ; then
     echo "Starting StringTie Merge"
     post_slack_message cluster-jobs "Starting merge" "$me"
- 	stringtie --merge -G ${cvir_genome}/ref_C_virginica-3.0_top_level.gff3 -o $stringtie/test/stringtie_merged.gtf $stringtie/mergelist.txt
+ 	stringtie --merge -G ${cvir_genome}/ref_C_virginica-3.0_top_level.gff3 -o $stringtie/test/trans2017_final/stringtie_merged.gtf $stringtie/test/trans2017_final/mergelist.txt
     echo "done"
     post_slack_message cluster-jobs "done" "$me.$base"
     #done
@@ -150,7 +150,7 @@ fi
 if [ "${RUN_STEP}" == "compare" ] ; then
     echo "Starting StringTie Gffcompare"
     post_slack_message cluster-jobs "Starting gffcompare" "$me"
- 	gffcompare -r ${cvir_genome}/ref_C_virginica-3.0_top_level.gff3 -G -o $stringtie/merged $stringtie/test/stringtie_merged.gtf
+ 	gffcompare -r ${cvir_genome}/ref_C_virginica-3.0_top_level.gff3 -G -o $stringtie/merged $stringtie/test/trans2017_final/stringtie_merged.gtf
     echo "done"
     post_slack_message cluster-jobs "compare done" "$me.$base"
     #done
@@ -163,10 +163,10 @@ fi
 #Re-estimate transcript abundance after merge step
 
 if [ "${RUN_STEP}" == "reestimate" ] ; then
-    array1=($(ls -1 ${hisat_cvir}/test/${FILES[$SLURM_ARRAY_TASK_ID]}.bam))
+    array1=($(ls -1 ${bam_files}/${FILES[$SLURM_ARRAY_TASK_ID]}.bam))
     if [ "${#array1[@]}" == "0" ]; then
-        echo "($SLURM_ARRAY_TASK_ID) ERROR: No input files matching '${hisat_cvir}/test/${FILES[$SLURM_ARRAY_TASK_ID]}.bam'"
-        post_slack_message cluster-jobs "ERROR: No input files matching '${hisat_cvir}/test/${FILES[$SLURM_ARRAY_TASK_ID]}.bam'" "$me"
+        echo "($SLURM_ARRAY_TASK_ID) ERROR: No input files matching '${bam_files}/${FILES[$SLURM_ARRAY_TASK_ID]}.bam'"
+        post_slack_message cluster-jobs "ERROR: No input files matching '${bam_files}/${FILES[$SLURM_ARRAY_TASK_ID]}.bam'" "$me"
         exit 1
     fi
     
@@ -175,14 +175,14 @@ if [ "${RUN_STEP}" == "reestimate" ] ; then
     for i in ${array1[@]}; do
         echo "${array1[@]}"
         base=$(basename $i)
-        echo stringtie -e -G $stringtie/test/stringtie_merged.gtf \
-                  -o $stringtie/test/${i%.bam}.merge.gtf -p 10 ${i}
-        post_slack_message cluster-jobs "stringtie -e -G $stringtie/test/stringtie_merged.gtf -o $stringtie/test/${base%.bam}.merge.gtf -p 10 ${i}" "$me"
+        echo stringtie -e -G $stringtie/test/trans2017_final/stringtie_merged.gtf \
+                  -o $stringtie/test/trans2017_final/${i%.bam}.merge.gtf -p 10 ${i}
+        post_slack_message cluster-jobs "stringtie -e -G $stringtie/test/trans2017_final/stringtie_merged.gtf -o $stringtie/test/trans2017_final/${base%.bam}.merge.gtf -p 10 ${i}" "$me"
         if [ "$debug" ]; then
             touch ${i%.bam}.merge.gtf 
         else
-            stringtie -e -G $stringtie/test/stringtie_merged.gtf \
-              -o $stringtie/test/${base%.bam}.merge.gtf -p 10 ${i}
+            stringtie -e -G $stringtie/test/trans2017_final/stringtie_merged.gtf \
+              -o $stringtie/test/trans2017_final/${base%.bam}.merge.gtf -p 10 ${i}
         fi
         echo done
         post_slack_message cluster-jobs "done" "$me.$base"
@@ -205,7 +205,7 @@ fi
 #Generate count matrices using prepDE.py, prep_DE.py accepts a .txt file listing sample IDs and GTFs paths 
 #create sample_list.txt
 if [ "${RUN_STEP}" == "deseq" ] ; then
-    array2=($(ls $stringtie/test/*.merge.gtf))
+    array2=($(ls $stringtie/test/trans2017_final/*.merge.gtf))
     :> sample_list.txt #to avoid concatenating file content if run twice this command will 
                        #make a new file each time you run the code.
     
