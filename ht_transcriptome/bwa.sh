@@ -20,6 +20,7 @@ module load metabat/0.32.4-1-foss-2016b
 project_home=/data3/marine_diseases_lab/tejashree/Bio_project_SRA/
 bac_genomes=${project_home}/bac_genomes
 bwa_index=${bac_genomes}/bwa_index/allgenomes_bac_bwa.fna
+bac_reference_fasta=${bac_genomes}/ALLgenomes_bac.fna
 cvir_index=${project_home}/cvir_genome/cvir_edited.fa
 bwa=${project_home}/bwa
 trans2017=${bwa}/trans2017_final/bac
@@ -127,10 +128,11 @@ array2=($(ls -1 ${trans2017}/${FILES[$SLURM_ARRAY_TASK_ID]}.sam))
 echo "Starting coverage estmation "
 for f in ${array2[@]}; do
     echo "working on $f "
-    samtools sort -m 50G -o $f.bam $f
-    samtools flagstat ${f}.bam > ${f}.stat
-    samtools depth ${f}.bam > ${f}_bamtoolsdepth.txt
-    jgi_summarize_bam_contig_depths  --outputDepth ${f}.jgiDepth.txt --showDepth --referenceFasta ${bac_index} $f.bam 
+    #samtools sort -m 50G -o $f.bam $f
+    #samtools flagstat ${f}.bam > ${f}.stat
+    #samtools depth ${f}.bam > ${f}_bamtoolsdepth.txt
+    echo "running: jgi_summarize_bam_contig_depths  --outputDepth ${f}.jgiDepth.txt --showDepth --referenceFasta ${bac_reference_fasta} $f.bam"
+    jgi_summarize_bam_contig_depths  --outputDepth ${f}.jgiDepth.txt --showDepth --referenceFasta ${bac_reference_fasta} $f.bam 
     echo "$f done"
 done
 
