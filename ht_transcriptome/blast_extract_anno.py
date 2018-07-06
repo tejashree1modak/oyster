@@ -50,7 +50,9 @@ def get_top_n(iteration, n):
     for key in base.keys():
         base[key] = get_child(iteration, key)
 
-    hits = iteration.findall("./Iteration_hits/Hit")[:n] if iteration is not None else []
+    hits = iteration.findall("./Iteration_hits/Hit") if iteration is not None else []
+    if n is not None:
+        hits = hits[:n]
     if hits:
         for hit in hits:
             result = base.copy()
@@ -71,10 +73,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--xml', type=argparse.FileType('r'), default=sys.stdin, help='The combined xml file')
     parser.add_argument('-o', '--out', type=argparse.FileType('w'), default=sys.stdout, help='The out csv file')
-    parser.add_argument('-n', '--top', type=int, default=1, help='The top N hits to include (default:1)')
+    parser.add_argument('-n', '--top', type=int, help='The top N hits to include (default:1)')
 
     args = parser.parse_args()
-    if args.top <= 0:
+    if args.top is not None and args.top <= 0:
         print "ERROR: --top needs to be >= 1"
     else:
         document = ET.parse(args.xml)
