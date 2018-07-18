@@ -357,8 +357,8 @@ write.csv( as.data.frame(sig_trans_2_S4_2vsCon), file="Gene_dfSig_trans2_S4_2vsC
 #Exp2: The experiment that compares the exposures WITH pretreatment
 ########################################################################################################
 ##prep data for comparison of exp 1: 3,4,5,9,10,11,19,20,21,28,29,30. 
-trans_cts_3 <- trans_cts_lb[,c(3,4,5,9,10,11,19,20,21,28,29,30)]
-coldata_3 <- coldata_lb[c(3,4,5,9,10,11,19,20,21,28,29,30),]
+trans_cts_3 <- trans_cts_lb[,c(3,4,9,10,11,19,20,21,28,29,30)]
+coldata_3 <- coldata_lb[c(3,4,9,10,11,19,20,21,28,29,30),]
 head(trans_cts_3)
 coldata_3
 all(rownames(coldata_3) %in% colnames(trans_cts_3))  #Should return TRUE
@@ -372,16 +372,14 @@ head(trans_dds_3)
 trans_dds_3$condition <- relevel(trans_dds_3$condition, ref = "control_2")
 GeneCounts_trans_3 <- counts(trans_dds_3)
 idx.nz_trans_3 <- apply(GeneCounts_trans_3, 1, function(x) { all(x > 0)}) 
-sum(idx.nz_trans_3) #5982
+sum(idx.nz_trans_3) #23561
 trans_3 <- as.character(colData(trans_dds_3)$condition)
 colData(trans_dds_3)$condition <- factor(trans_3, levels = c("control_2", "RE_2", 
                                                              "RIplusRE", "S4plusRE"))
 trans_dds_3 <- estimateSizeFactors(trans_dds_3)
 sizeFactors(trans_dds_3)
-# C_R1        C_R2        C_R3       RE_R1       RE_R2       RE_R3 RIplusRE_R1 RIplusRE_R2 RIplusRE_R3 S4plusRE_R1 S4plusRE_R2 
-# 0.8730196   1.0148181   0.4618319   1.3686746   0.9307247   1.7670194   1.0864780   1.1336485   0.7644821   1.3493908   1.5643641 
-# S4plusRE_R3 
-# 0.9798007 
+#C_R1        C_R2       RE_R1       RE_R2       RE_R3 RIplusRE_R1 RIplusRE_R2 RIplusRE_R3 S4plusRE_R1 S4plusRE_R2 S4plusRE_R3 
+#0.8651961   0.8671836   1.1108687   0.9741280   1.5639435   0.9370440   1.1576766   0.7214585   1.1339186   1.5440218   0.9501071 
 rld_trans_3 <- rlogTransformation(trans_dds_3, blind=TRUE) 
 distsRL_trans_rld_3 <- dist(t(assay(rld_trans_3)))
 mat_trans_rld_3 <- as.matrix(distsRL_trans_rld_3)
@@ -401,9 +399,54 @@ dev.off()
 z33 <- DESeq2::plotPCA(vst_trans_3, intgroup=c("condition"))
 z33 + geom_label(aes(label = name))
 
+#MDS plot##
+mds_3 <- data.frame(cmdscale(mat_trans_rld_3))
+ggplot(mds_3, aes(X1,X2)) + geom_point(size=3)
+mds_3 <- cbind(mds_3, as.data.frame(colData(rld_trans_3)))
+mds_3 <- data.frame(cmdscale(mat_trans_rld_3),eig=TRUE,k=2,x.ret=TRUE)
+mds_3 <- cbind(mds_3, as.data.frame(colData(rld_trans_3)))
+ggplot(mds_3, aes(X1,X2,color=condition)) + geom_point(size=3)
+mds_3
+# X1         X2  eig k x.ret condition time sizeFactor
+# C_R1        -134.79553 -178.31124 TRUE 2  TRUE control_2   24  0.8651961
+# C_R2         154.51208   86.21916 TRUE 2  TRUE control_2   24  0.8671836
+# RE_R1        243.49559 -125.81756 TRUE 2  TRUE      RE_2    6  1.1108687
+# RE_R2       -295.33001   90.91405 TRUE 2  TRUE      RE_2    6  0.9741280
+# RE_R3        153.51821  -56.46702 TRUE 2  TRUE      RE_2    6  1.5639435
+# RIplusRE_R1  231.43611  -98.51774 TRUE 2  TRUE  RIplusRE   30  0.9370440
+# RIplusRE_R2 -260.25049  172.68238 TRUE 2  TRUE  RIplusRE   30  1.1576766
+# RIplusRE_R3 -215.81489 -175.44013 TRUE 2  TRUE  RIplusRE   30  0.7214585
+# S4plusRE_R1  259.51853 -100.01906 TRUE 2  TRUE  S4plusRE   30  1.1339186
+# S4plusRE_R2   90.48955  541.77192 TRUE 2  TRUE  S4plusRE   30  1.5440218
+# S4plusRE_R3 -226.77914 -157.01476 TRUE 2  TRUE  S4plusRE   30  0.9501071
+#clustering with vst transformation
 topVarGenes_trans_3 <- head(order(rowVars(assay(vst_trans_3)), decreasing = TRUE), 50) #picking the 50genes with highest variance across samples
 mat_trans_3 <- assay(vst_trans_3)[ topVarGenes_trans_3, ]
 mat_trans_3 <- mat_trans_3 - rowMeans(mat_trans_3)
 anno_trans_3 <- as.data.frame(colData(vst_trans_3)[, c("condition","time")]) 
 pheatmap(mat_trans_3, annotation_col = anno_trans_3)
+##
+### DE analysis ####
+#Just run the whole deseq function together
+trans_dds_3 <- DESeq(trans_dds_3)
+#Extracting results
+DESeq2Res_trans_3_RE_2vsCon <- results(trans_dds_3, pAdjustMethod = "BH", contrast = c("condition", "RE_2", "control_2")) #BBH=Benjamini Hochberg adjustment
+DESeq2Res_trans_3_RE_2vsCon
+DESeq2Res_trans_3_RE_2vsCon <- DESeq2Res_trans_3_RE_2vsCon[ !is.na(DESeq2Res_trans_3_RE_2vsCon$padj), ]
+sig_trans_3_RE_2vsCon <- DESeq2Res_trans_3_RE_2vsCon[ which(DESeq2Res_trans_3_RE_2vsCon$padj < 0.05 ), ]
+summary(sig_trans_3_RE_2vsCon) #2084
+write.csv( as.data.frame(sig_trans_3_RE_2vsCon), file="Gene_dfSig_trans3_REvsCon_0.05.csv")#2084 genes
 
+DESeq2Res_trans_3_RIplusREvsCon <- results(trans_dds_3, pAdjustMethod = "BH", contrast = c("condition", "RIplusRE", "control_2")) #BBH=Benjamini Hochberg adjustment
+DESeq2Res_trans_3_RIplusREvsCon
+DESeq2Res_trans_3_RIplusREvsCon <- DESeq2Res_trans_3_RIplusREvsCon[ !is.na(DESeq2Res_trans_3_RIplusREvsCon$padj), ]
+sig_trans_3_RIplusREvsCon <- DESeq2Res_trans_3_RIplusREvsCon[ which(DESeq2Res_trans_3_RIplusREvsCon$padj < 0.05 ), ]
+summary(sig_trans_3_RIplusREvsCon) #2109
+write.csv( as.data.frame(sig_trans_3_RIplusREvsCon), file="Gene_dfSig_trans3_RIplusREvsCon_0.05.csv")#2109 genes
+
+DESeq2Res_trans_3_S4plusREvsCon <- results(trans_dds_3, pAdjustMethod = "BH", contrast = c("condition", "S4plusRE", "control_2")) #BBH=Benjamini Hochberg adjustment
+DESeq2Res_trans_3_S4plusREvsCon
+DESeq2Res_trans_3_S4plusREvsCon <- DESeq2Res_trans_3_S4plusREvsCon[ !is.na(DESeq2Res_trans_3_S4plusREvsCon$padj), ]
+sig_trans_3_S4plusREvsCon <- DESeq2Res_trans_3_S4plusREvsCon[ which(DESeq2Res_trans_3_S4plusREvsCon$padj < 0.05 ), ]
+summary(sig_trans_3_S4plusREvsCon) #2139
+write.csv( as.data.frame(sig_trans_3_S4plusREvsCon), file="Gene_dfSig_trans3_S4plusREvsCon_0.05.csv")#2139 genes
