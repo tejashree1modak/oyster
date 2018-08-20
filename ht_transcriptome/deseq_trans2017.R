@@ -450,3 +450,99 @@ DESeq2Res_trans_3_S4plusREvsCon <- DESeq2Res_trans_3_S4plusREvsCon[ !is.na(DESeq
 sig_trans_3_S4plusREvsCon <- DESeq2Res_trans_3_S4plusREvsCon[ which(DESeq2Res_trans_3_S4plusREvsCon$padj < 0.05 ), ]
 summary(sig_trans_3_S4plusREvsCon) #2139
 write.csv( as.data.frame(sig_trans_3_S4plusREvsCon), file="Gene_dfSig_trans3_S4plusREvsCon_0.05.csv")#2139 genes
+
+######################################
+#Trans4: RE only: Pooling all Con and RE 
+######################################
+coldata_lb_trans4 <- read.csv("~/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/deseq/trans_4/Full_pheno_data_2017_trans4.csv",
+                       header=TRUE, sep=",", row.names="sample_id")
+##prep data for comparison: 2,3,4,5,7,8,9,10,11,12,13 
+#All controls labeled as control and RE treatments as RE. 
+#No segregation between exp1,exp2 but excluding CR3 since it shows off data.
+
+trans_cts_4 <- trans_cts_lb[,c(1,2,3,4,6,7,8,9,10,11,12)]
+coldata_4 <- coldata_lb_trans4[c(1,2,3,4,6,7,8,9,10,11,12),]
+all(rownames(coldata_4) %in% colnames(trans_cts_4))  #Should return TRUE
+countData_4 <- trans_cts_4[, rownames(coldata_4)]
+all(rownames(coldata_4) == colnames(countData_4))
+trans_dds_4 <- DESeqDataSetFromMatrix(countData = trans_cts_4, 
+                                      colData = coldata_4, design = ~ condition)
+head(trans_dds_4)
+trans_dds_4 <- trans_dds_4[ rowSums(counts(trans_dds_4)) > 1, ]
+head(trans_dds_4)
+trans_dds_4$condition <- relevel(trans_dds_4$condition, ref = "control")
+GeneCounts_trans_4 <- counts(trans_dds_4)
+idx.nz_trans_4 <- apply(GeneCounts_trans_4, 1, function(x) { all(x > 0)}) 
+sum(idx.nz_trans_4) #24333
+trans_4 <- as.character(colData(trans_dds_4)$condition)
+colData(trans_dds_4)$condition <- factor(trans_4, levels = c("control", "RE"))
+trans_dds_4 <- estimateSizeFactors(trans_dds_4)
+sizeFactors(trans_dds_4)
+#C_K_0     C_M_0      C_R1      C_R2     C_V_0    RE_K_6    RE_M_6     RE_R1     RE_R2     RE_R3    RE_V_6 
+#0.9794706 0.9712956 0.7571960 0.7377742 1.2777736 1.0451304 0.9532108 0.9438546 0.8575323 1.3019751 2.3411947 
+rld_trans_4 <- rlogTransformation(trans_dds_4, blind=TRUE) 
+distsRL_trans_rld_4 <- dist(t(assay(rld_trans_4)))
+mat_trans_rld_4 <- as.matrix(distsRL_trans_rld_4)
+hmcol <- colorRampPalette(brewer.pal(9, "GnBu"))(100)
+heatmap.2(mat_trans_rld_4, trace="none", col = rev(hmcol), margin=c(13, 13))
+dev.copy(pdf, "HeatmapPlots_transrld4.pdf")
+dev.off()
+DESeq2::plotPCA(rld_trans_4, intgroup=c("condition"))+ geom_label(aes(label = name))
+##MDS plot##
+mds_4 <- data.frame(cmdscale(mat_trans_rld_4))
+mds_4 <- cbind(mds_4, as.data.frame(colData(rld_trans_4)))
+mds_4 <- data.frame(cmdscale(mat_trans_rld_4),eig=TRUE,k=2,x.ret=TRUE)
+mds_4 <- cbind(mds_4, as.data.frame(colData(rld_trans_4)))
+ggplot(mds_4, aes(X1,X2,color=condition)) + geom_point(size=3) 
+mds_4
+#                X1         X2  eig k x.ret condition time sizeFactor
+# C_K_0   -59.49615 -134.06595 TRUE 2  TRUE   control    6  0.9794706
+# C_M_0   -27.34243 -141.96358 TRUE 2  TRUE   control    6  0.9712956
+# C_R1    -96.65269 -208.40920 TRUE 2  TRUE   control   24  0.7571960
+# C_R2   -102.37089  137.01634 TRUE 2  TRUE   control   24  0.7377742
+# C_V_0   283.70877  155.11625 TRUE 2  TRUE   control    6  1.2777736
+# RE_K_6  -37.43505 -193.95769 TRUE 2  TRUE        RE    6  1.0451304
+# RE_M_6  -32.83171 -191.13446 TRUE 2  TRUE        RE    6  0.9532108
+# RE_R1  -228.09423   45.51922 TRUE 2  TRUE        RE    6  0.9438546
+# RE_R2    63.89583 -127.80982 TRUE 2  TRUE        RE    6  0.8575323
+# RE_R3  -305.27692  489.21804 TRUE 2  TRUE        RE    6  1.3019751
+# RE_V_6  541.89546  170.47083 TRUE 2  TRUE        RE    6  2.3411947
+#vst transformation#
+vst_trans_4 <- varianceStabilizingTransformation(trans_dds_4, blind=TRUE)
+distsRL_trans_4 <- dist(t(assay(vst_trans_4)))
+mat_trans_4 <- as.matrix(distsRL_trans_4)
+hmcol <- colorRampPalette(brewer.pal(9, "GnBu"))(100)
+heatmap.2(mat_trans_4, trace="none", col = rev(hmcol), margin=c(13, 13))
+dev.copy(pdf, "HeatmapPlots_trans_vst_4.pdf")
+dev.off()
+z1 <- DESeq2::plotPCA(vst_trans_4, intgroup=c("condition"))
+z1 + geom_label(aes(label = name))
+##
+topVarGenes_trans_4 <- head(order(rowVars(assay(vst_trans_4)), decreasing = TRUE), 50) #picking the 50genes with highest variance across samples
+mat_trans_4 <- assay(vst_trans_4)[ topVarGenes_trans_4, ]
+mat_trans_4 <- mat_trans_4 - rowMeans(mat_trans_4)
+anno_trans_4 <- as.data.frame(colData(vst_trans_4)[, c("condition","time")]) 
+pheatmap(mat_trans_4, annotation_col = anno_trans_4)
+
+### DE analysis ####
+#Just run the whole deseq function together
+trans_dds_4 <- DESeq(trans_dds_4)
+#Extracting results
+DESeq2Res_trans_4_REvsCon <- results(trans_dds_4, pAdjustMethod = "BH", contrast = c("condition", "RE", "control")) #BBH=Benjamini Hochberg adjustment
+DESeq2Res_trans_4_REvsCon
+DESeq2Res_trans_4_REvsCon <- DESeq2Res_trans_4_REvsCon[ !is.na(DESeq2Res_trans_4_REvsCon$padj), ]
+sig_trans_4_REvsCon <- DESeq2Res_trans_4_REvsCon[ which(DESeq2Res_trans_4_REvsCon$padj < 0.05 ), ]
+nonsig_trans_4_REvsCon <- DESeq2Res_trans_4_REvsCon[ which(DESeq2Res_trans_4_REvsCon$padj > 0.05 ), ]
+head( sig_trans_4_REvsCon[ order( sig_trans_4_REvsCon$log2FoldChange ), ] ) #head for strongest downregulation
+tail( sig_trans_4_REvsCon[ order( sig_trans_4_REvsCon$log2FoldChange ), ] ) #tail for strongest downregulation
+summary(sig_trans_4_REvsCon) #
+summary(nonsig_trans_4_REvsCon)#
+write.csv( as.data.frame(sig_trans_4_REvsCon), file="Gene_dfSig_trans4_REvsCon_0.05.csv") # genes
+write.csv( as.data.frame(nonsig_trans_4_REvsCon), file="Gene_dfNonSig_trans4_REvsCon_0.05.csv")
+
+
+
+
+
+
+
