@@ -8,7 +8,7 @@ library(dplyr)
 # tried above but not very useful.
 
 
-setwd("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/")
+setwd("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_3")
 
 ### STEP1:
 ### Combine BLAST and GO annotation and Fold change ###
@@ -16,13 +16,13 @@ setwd("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcript
 
 ## Input: go_annot.txt :This file is the exported output annotations table from BLAST2GO stored in bg2workspace ##
 # This file has: Iteration_query.df and sevral other fields like evalue etc. we want GO IDs and GO Names from this table.
-go_annot <- read.csv("/Users/tejashree/b2gWorkspace/trans2017_final/trans_2/S4_2vsCon/s4_2vscon_go_annot.txt", 
+go_annot <- read.csv("/Users/tejashree/b2gWorkspace/trans2017_final/trans_3/RE_2vsCon/re_2vscon_go_annot.txt", 
                              sep = "\t", header = TRUE)
 
 ## Input: deg_sorted :This file is made by combining DESeq Gene_sigdf.csv file and blast annotations file combined_annot.csv generated on bluewaves 
 ## How to make this file is described in the 'Get BLAST annotations and fold change' section of BLAST in the project log 2017_transcriptome_analysis
 # This file has: Iteration_query.df, foldchange, description 
-deg_sorted <- read.csv("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/blast/trans_2/S4_2vsCon_deg_sorted.csv", 
+deg_sorted <- read.csv("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/blast/trans_3/RE_2vsCon_deg_sorted.csv", 
                                sep = ",", header = TRUE)
 #Make sure headers match, combine using join 
 deg_go <- left_join(deg_sorted, go_annot, by = 'Iteration_query.def')
@@ -61,14 +61,17 @@ ko_up <- read.csv2("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring20
 ko_down <- read.csv2("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/kegg/trans_2/S4_2vsCon_downreg_ko.txt", 
                            sep="\t", header=FALSE)
 ## !! Use this Input code if you dont have separate ko_up/ko_down files !!
-# skip next few lines of code in Step3 if you use this since you already have ko dataframe ready
-ko <- read.csv2("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/kegg/trans_3/", 
+# add colnames to the ko object and then
+#skip next few lines of code in Step3 if you use this since you already have ko dataframe ready
+ko <- read.csv2("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/kegg/trans_3/RE_2vsCon_trans3.ko.txt", 
                 sep="\t", header=FALSE)
 # write headers #
 colnames(ko_up) <- c('Iteration_query.def','KO')
 colnames(ko_down) <- c('Iteration_query.def','KO')
+colnames(ko) <- c('Iteration_query.def','KO')
 head(ko_up)
 head(ko_down)
+head(ko)
 # remove first row that was added for KAAS:' #revscon_upreg '
 ko_up2 <- ko_up[-1,]
 ko_down2 <- ko_down[-1,]
@@ -96,19 +99,20 @@ write.table(deg_ko, file = "deg_ko.csv",
 ####STEP5:
 ## Combine all annotations: Iteration_query.def, Foldchange, Description, GO IDs, GO Names, KO, Pathway, pathwayname
 ## Input: deg_go file :Output of section1- Combine BLAST and GO annotation and Fold change
-deg_go <- read.csv2("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_2/deg_go.csv", 
+deg_go <- read.csv2("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_3/deg_go.csv", 
                             sep=",", header=TRUE) 
 ## Input: Output file of section3: Combine to get Iteration_query.def, KO, pathwaynum, pathwayname edited using awk and header aded ##
-deg_ko_r <- read.csv2("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_2/deg_ko_r.csv", 
+deg_ko_r <- read.csv2("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_3/deg_ko_r.csv", 
                             sep="\t", header=TRUE) 
 ## Join both ##
-# !!! Use full join next time !!!! #
+#Using left join because ko gives more info than GO terms #
+#its the same genes so we wont skip any but having those with Kegg info is more useful than GO terms #
 deg_ko_go <- left_join(deg_ko_r, deg_go, by = 'Iteration_query.def')
 deg_ko_go <- deg_ko_go[c("Iteration_query.def", "log2FoldChange", "Hit_def", "GO.Names", "pathway_name", "pathway","GO.IDs", "KO" )]
 
 ## Write output as csv ## 
 #Change name to avoid overwrite!! ##
-write.table(deg_ko_go, file = "/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_2/deg_ko_go.tsv",
+write.table(deg_ko_go, file = "/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_3/deg_ko_go.tsv",
             row.names = F, quote = FALSE, sep = '\t')
 #Change name of output file and can delete intermediate files # 
 
@@ -116,18 +120,18 @@ write.table(deg_ko_go, file = "/Users/tejashree/Documents/Projects/oyster/exp_da
 #### Add column for treatment with same rows for deg_ko_go.csv ###
 #after data for each treatment has gone through above steps #
 #this can be used to combine all deg_ko_go tables into one table to see shared genes#
-deg_ko_go_1 <- read.csv2("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_2/ri_2vscon_deg_ko_go.tsv", 
+deg_ko_go_1 <- read.csv2("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_3/re_2vscon_deg_ko_go.tsv", 
                       sep="\t", header=TRUE)
-deg_ko_go_2 <- read.csv2("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_2/s4_2vscon_deg_ko_go.tsv", 
+deg_ko_go_2 <- read.csv2("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_3/s4plusre_deg_ko_go.tsv", 
                          sep="\t", header=TRUE)
-#deg_ko_go_3 <- read.csv2("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_1/rivscon_deg_ko_go.tsv", 
-#                         sep="\t", header=TRUE)
-deg_ko_go_1$treatment <- "r1_2vscon_trans2"
-deg_ko_go_2$treatment <- "s4_2vscon_trans2"
-#deg_ko_go_3$treatment <- "rivscon_trans1"
-#deg_ko_go_comb <- rbind(deg_ko_go_1,deg_ko_go_2,deg_ko_go_3)
-deg_ko_go_comb <- rbind(deg_ko_go_1,deg_ko_go_2)
-write.table(deg_ko_go_comb, file = "/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_2/deg_ko_go_comb.tsv",
+deg_ko_go_3 <- read.csv2("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_3/riplusre_deg_ko_go.tsv", 
+                         sep="\t", header=TRUE)
+deg_ko_go_1$treatment <- "re_2vscon_trans3"
+deg_ko_go_2$treatment <- "s4plusre_trans3"
+deg_ko_go_3$treatment <- "riplusre_trans3"
+deg_ko_go_comb <- rbind(deg_ko_go_1,deg_ko_go_2,deg_ko_go_3)
+#deg_ko_go_comb <- rbind(deg_ko_go_1,deg_ko_go_2)
+write.table(deg_ko_go_comb, file = "/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_3/trans3_deg_ko_go_comb.tsv",
             row.names = F, quote = FALSE, sep = '\t')
 #open deg_ko_go.tsv using excel#
 #color rows by treatment#
@@ -135,13 +139,15 @@ write.table(deg_ko_go_comb, file = "/Users/tejashree/Documents/Projects/oyster/e
 #save as : xlsb in curated dir #
 
 #Step7#
-#combining trans1 and trans2 combined annot#
+#combining trans1, trans2 and trans3 combined annot#
 deg_ko_go_trans1 <- read.csv2("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_1/reris4vscon_deg_ko_go_comb.tsv", 
                          sep="\t", header=TRUE)
 deg_ko_go_trans2 <- read.csv2("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_2/ris4_2vscon_deg_ko_go_comb.tsv", 
                          sep="\t", header=TRUE)
-deg_ko_go_trans_comb <- rbind(deg_ko_go_trans1,deg_ko_go_trans2)
-write.table(deg_ko_go_trans_comb, file = "/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans1_2_deg_ko_go_comb.tsv",
+deg_ko_go_trans3 <- read.csv2("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans_3/trans3_deg_ko_go_comb.tsv", 
+                              sep="\t", header=TRUE)
+deg_ko_go_trans_comb <- rbind(deg_ko_go_trans1,deg_ko_go_trans2, deg_ko_go_trans3)
+write.table(deg_ko_go_trans_comb, file = "/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/combined_annotations/trans1_2_3_comparison/trans1_2_3_deg_ko_go_comb.tsv",
             row.names = F, quote = FALSE, sep = '\t')
 #open deg_ko_go.tsv using excel#
 #color rows by treatment#
