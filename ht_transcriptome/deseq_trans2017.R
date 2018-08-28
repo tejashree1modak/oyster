@@ -24,7 +24,7 @@ library(gridExtra)
 library(grid)
 library(lattice)
 
-setwd("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/deseq")
+setwd("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/deseq/trans_5")
 
 # Read in transcript counts and metadata file
 #Sample_ids not in same order in the two files. 
@@ -354,7 +354,7 @@ summary(sig_trans_2_S4_2vsCon) #3459
 write.csv( as.data.frame(sig_trans_2_S4_2vsCon), file="Gene_dfSig_trans2_S4_2vsCon_0.05.csv")#3459
 
 ########################################################################################################
-#Exp2: The experiment that compares the exposures WITH pretreatment
+#Trans_3: Exp2: The experiment that compares the exposures WITH pretreatment
 ########################################################################################################
 ##prep data for comparison of exp 1: 3,4,5,9,10,11,19,20,21,28,29,30. 
 trans_cts_3 <- trans_cts_lb[,c(3,4,9,10,11,19,20,21,28,29,30)]
@@ -540,6 +540,105 @@ summary(nonsig_trans_4_REvsCon)#
 write.csv( as.data.frame(sig_trans_4_REvsCon), file="Gene_dfSig_trans4_REvsCon_0.05.csv") # genes
 write.csv( as.data.frame(nonsig_trans_4_REvsCon), file="Gene_dfNonSig_trans4_REvsCon_0.05.csv")
 
+################################################################################
+#Trans_5: Like trans_3 but removing all samples from replicate 3
+###############################################################################
+##prep data for comparison of exp 1: 3,4,5,9,10,19,20,28,29. 
+trans_cts_5 <- trans_cts_lb[,c(3,4,9,10,19,20,28,29)]
+coldata_5 <- coldata_lb[c(3,4,9,10,19,20,28,29),]
+head(trans_cts_5)
+coldata_5
+all(rownames(coldata_5) %in% colnames(trans_cts_5))  #Should return TRUE
+countData_5 <- trans_cts_5[, rownames(coldata_5)]
+all(rownames(coldata_5) == colnames(countData_5))
+trans_dds_5 <- DESeqDataSetFromMatrix(countData = trans_cts_5, 
+                                      colData = coldata_5, design = ~ condition)
+head(trans_dds_5)
+trans_dds_5 <- trans_dds_5[ rowSums(counts(trans_dds_5)) > 1, ]
+head(trans_dds_5)
+trans_dds_5$condition <- relevel(trans_dds_5$condition, ref = "control_2")
+GeneCounts_trans_5 <- counts(trans_dds_5)
+idx.nz_trans_5 <- apply(GeneCounts_trans_5, 1, function(x) { all(x > 0)}) 
+sum(idx.nz_trans_5) #25867
+trans_5 <- as.character(colData(trans_dds_5)$condition)
+colData(trans_dds_5)$condition <- factor(trans_5, levels = c("control_2", "RE_2", 
+                                                             "RIplusRE", "S4plusRE"))
+trans_dds_5 <- estimateSizeFactors(trans_dds_5)
+sizeFactors(trans_dds_5)
+#       C_R1        C_R2       RE_R1       RE_R2 RIplusRE_R1 RIplusRE_R2 S4plusRE_R1 S4plusRE_R2 
+#0.8625380   0.8633007   1.1091819   0.9632206   0.9362747   1.1312728   1.1339606   1.5276417  
+rld_trans_5 <- rlogTransformation(trans_dds_5, blind=TRUE) 
+#Warning
+# In this data, for 10.2% of genes with a sum of normalized counts above 100, it was the case 
+# that a single sample's normalized count made up more than 90% of the sum over all samples.
+#the threshold for this warning is 10% of genes. See plotSparsity(dds) for a visualization of this.
+#We recommend instead using the varianceStabilizingTransformation or shifted log (see vignette).
+distsRL_trans_rld_5 <- dist(t(assay(rld_trans_5)))
+mat_trans_rld_5 <- as.matrix(distsRL_trans_rld_5)
+hmcol <- colorRampPalette(brewer.pal(9, "GnBu"))(100)
+heatmap.2(mat_trans_rld_5, trace="none", col = rev(hmcol), margin=c(13, 13))
+dev.copy(pdf, "HeatmapPlots_transrld_5.pdf")
+dev.off()
+z5 <- DESeq2::plotPCA(rld_trans_5, intgroup=c("condition"))
+z5 + geom_label(aes(label = name))
+vst_trans_5 <- varianceStabilizingTransformation(trans_dds_5, blind=TRUE)
+distsRL_trans_5 <- dist(t(assay(vst_trans_5)))
+mat_trans_5 <- as.matrix(distsRL_trans_5)
+hmcol <- colorRampPalette(brewer.pal(9, "GnBu"))(100)
+heatmap.2(mat_trans_5, trace="none", col = rev(hmcol), margin=c(13, 13))
+dev.copy(pdf, "HeatmapPlots_trans_vst_5.pdf")
+dev.off()
+z55 <- DESeq2::plotPCA(vst_trans_5, intgroup=c("condition"))
+z55 + geom_label(aes(label = name))
+
+#MDS plot##
+mds_5 <- data.frame(cmdscale(mat_trans_rld_5))
+ggplot(mds_5, aes(X1,X2)) + geom_point(size=3)
+mds_5 <- cbind(mds_5, as.data.frame(colData(rld_trans_5)))
+mds_5 <- data.frame(cmdscale(mat_trans_rld_5),eig=TRUE,k=2,x.ret=TRUE)
+mds_5 <- cbind(mds_5, as.data.frame(colData(rld_trans_5)))
+ggplot(mds_5, aes(X1,X2,color=condition)) + geom_point(size=3)
+mds_5
+# X1          X2  eig k x.ret condition time sizeFactor
+# C_R1         -11.69856 -301.248685 TRUE 2  TRUE control_2   24  0.8625380
+# C_R2         -77.92404  115.442770 TRUE 2  TRUE control_2   24  0.8633007
+# RE_R1       -288.34758    1.837044 TRUE 2  TRUE      RE_2    6  1.1091819
+# RE_R2        297.24039 -238.311974 TRUE 2  TRUE      RE_2    6  0.9632206
+# RIplusRE_R1 -255.52945   25.353259 TRUE 2  TRUE  RIplusRE   30  0.9362747
+# RIplusRE_R2  326.71234 -156.303005 TRUE 2  TRUE  RIplusRE   30  1.1312728
+# S4plusRE_R1 -275.89483   41.923573 TRUE 2  TRUE  S4plusRE   30  1.1339606
+# S4plusRE_R2  285.44174  511.307018 TRUE 2  TRUE  S4plusRE   30  1.5276417
+#clustering with vst transformation
+topVarGenes_trans_5 <- head(order(rowVars(assay(vst_trans_5)), decreasing = TRUE), 50) #picking the 50genes with highest variance across samples
+mat_trans_5 <- assay(vst_trans_5)[ topVarGenes_trans_5, ]
+mat_trans_5 <- mat_trans_5 - rowMeans(mat_trans_5)
+anno_trans_5 <- as.data.frame(colData(vst_trans_5)[, c("condition","time")]) 
+pheatmap(mat_trans_5, annotation_col = anno_trans_5)
+##
+### DE analysis ####
+#Just run the whole deseq function together
+trans_dds_5 <- DESeq(trans_dds_5)
+#Extracting results
+DESeq2Res_trans_5_RE_2vsCon <- results(trans_dds_5, pAdjustMethod = "BH", contrast = c("condition", "RE_2", "control_2")) #BBH=Benjamini Hochberg adjustment
+DESeq2Res_trans_5_RE_2vsCon
+DESeq2Res_trans_5_RE_2vsCon <- DESeq2Res_trans_5_RE_2vsCon[ !is.na(DESeq2Res_trans_5_RE_2vsCon$padj), ]
+sig_trans_5_RE_2vsCon <- DESeq2Res_trans_5_RE_2vsCon[ which(DESeq2Res_trans_5_RE_2vsCon$padj < 0.05 ), ]
+summary(sig_trans_5_RE_2vsCon) #3103
+write.csv( as.data.frame(sig_trans_5_RE_2vsCon), file="Gene_dfSig_trans5_REvsCon_0.05.csv")#3103 genes
+
+DESeq2Res_trans_5_RIplusREvsCon <- results(trans_dds_5, pAdjustMethod = "BH", contrast = c("condition", "RIplusRE", "control_2")) #BBH=Benjamini Hochberg adjustment
+DESeq2Res_trans_5_RIplusREvsCon
+DESeq2Res_trans_5_RIplusREvsCon <- DESeq2Res_trans_5_RIplusREvsCon[ !is.na(DESeq2Res_trans_5_RIplusREvsCon$padj), ]
+sig_trans_5_RIplusREvsCon <- DESeq2Res_trans_5_RIplusREvsCon[ which(DESeq2Res_trans_5_RIplusREvsCon$padj < 0.05 ), ]
+summary(sig_trans_5_RIplusREvsCon) #3072
+write.csv( as.data.frame(sig_trans_5_RIplusREvsCon), file="Gene_dfSig_trans5_RIplusREvsCon_0.05.csv")#3072 genes
+
+DESeq2Res_trans_5_S4plusREvsCon <- results(trans_dds_5, pAdjustMethod = "BH", contrast = c("condition", "S4plusRE", "control_2")) #BBH=Benjamini Hochberg adjustment
+DESeq2Res_trans_5_S4plusREvsCon
+DESeq2Res_trans_5_S4plusREvsCon <- DESeq2Res_trans_5_S4plusREvsCon[ !is.na(DESeq2Res_trans_5_S4plusREvsCon$padj), ]
+sig_trans_5_S4plusREvsCon <- DESeq2Res_trans_5_S4plusREvsCon[ which(DESeq2Res_trans_5_S4plusREvsCon$padj < 0.05 ), ]
+summary(sig_trans_5_S4plusREvsCon) #3412
+write.csv( as.data.frame(sig_trans_5_S4plusREvsCon), file="Gene_dfSig_trans5_S4plusREvsCon_0.05.csv")#3412 genes
 
 
 
