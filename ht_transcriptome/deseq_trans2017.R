@@ -24,7 +24,7 @@ library(gridExtra)
 library(grid)
 library(lattice)
 
-setwd("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/deseq/trans_5")
+setwd("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/deseq/trans_6")
 
 # Read in transcript counts and metadata file
 #Sample_ids not in same order in the two files. 
@@ -639,6 +639,91 @@ DESeq2Res_trans_5_S4plusREvsCon <- DESeq2Res_trans_5_S4plusREvsCon[ !is.na(DESeq
 sig_trans_5_S4plusREvsCon <- DESeq2Res_trans_5_S4plusREvsCon[ which(DESeq2Res_trans_5_S4plusREvsCon$padj < 0.05 ), ]
 summary(sig_trans_5_S4plusREvsCon) #3412
 write.csv( as.data.frame(sig_trans_5_S4plusREvsCon), file="Gene_dfSig_trans5_S4plusREvsCon_0.05.csv")#3412 genes
+
+########################################################################
+#Trans6: RE only: Pooling all Con and RE BUT excluding RE_3
+########################################################################
+coldata_lb_trans6 <- read.csv("~/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/deseq/trans_4/Full_pheno_data_2017_trans4.csv",
+                              header=TRUE, sep=",", row.names="sample_id")
+##prep data for comparison: 2,3,4,5,7,8,9,10,12,13 
+#All controls labeled as control and RE treatments as RE. 
+#No segregation between exp1,exp2 but excluding CR3, RE_R3 since it shows off data.
+
+trans_cts_6 <- trans_cts_lb[,c(1,2,3,4,6,7,8,9,10,12)]
+coldata_6 <- coldata_lb_trans6[c(1,2,3,4,6,7,8,9,10,12),]
+all(rownames(coldata_6) %in% colnames(trans_cts_6))  #Should return TRUE
+countData_6 <- trans_cts_6[, rownames(coldata_6)]
+all(rownames(coldata_6) == colnames(countData_6))
+trans_dds_6 <- DESeqDataSetFromMatrix(countData = trans_cts_6, 
+                                      colData = coldata_6, design = ~ condition)
+head(trans_dds_6)
+trans_dds_6 <- trans_dds_6[ rowSums(counts(trans_dds_6)) > 1, ]
+head(trans_dds_6)
+trans_dds_6$condition <- relevel(trans_dds_6$condition, ref = "control")
+GeneCounts_trans_6 <- counts(trans_dds_6)
+idx.nz_trans_6 <- apply(GeneCounts_trans_6, 1, function(x) { all(x > 0)}) 
+sum(idx.nz_trans_6) #24911
+trans_6 <- as.character(colData(trans_dds_6)$condition)
+colData(trans_dds_6)$condition <- factor(trans_6, levels = c("control", "RE"))
+trans_dds_6 <- estimateSizeFactors(trans_dds_6)
+sizeFactors(trans_dds_6)
+# C_K_0     C_M_0      C_R1      C_R2     C_V_0    RE_K_6    RE_M_6     RE_R1     RE_R2    RE_V_6 
+# 1.0037603 0.9898238 0.7774584 0.7512704 1.3031378 1.0704195 0.9726290 0.9583222 0.8797168 2.3806194
+rld_trans_6 <- rlogTransformation(trans_dds_6, blind=TRUE) 
+distsRL_trans_rld_6 <- dist(t(assay(rld_trans_6)))
+mat_trans_rld_6 <- as.matrix(distsRL_trans_rld_6)
+hmcol <- colorRampPalette(brewer.pal(9, "GnBu"))(100)
+heatmap.2(mat_trans_rld_6, trace="none", col = rev(hmcol), margin=c(13, 13))
+dev.copy(pdf, "HeatmapPlots_transrld6.pdf")
+dev.off()
+DESeq2::plotPCA(rld_trans_6, intgroup=c("condition"))+ geom_label(aes(label = name))
+##MDS plot##
+mds_6 <- data.frame(cmdscale(mat_trans_rld_6))
+mds_6 <- cbind(mds_6, as.data.frame(colData(rld_trans_6)))
+mds_6 <- data.frame(cmdscale(mat_trans_rld_6),eig=TRUE,k=2,x.ret=TRUE)
+mds_6 <- cbind(mds_6, as.data.frame(colData(rld_trans_6)))
+ggplot(mds_6, aes(X1,X2,color=condition)) + geom_point(size=3) 
+mds_6
+#                X1         X2  eig k x.ret condition time sizeFactor
+# C_K_0  -110.379914 -114.94080 TRUE 2  TRUE   control    6  1.0037603
+# C_M_0   -83.199277 -108.33385 TRUE 2  TRUE   control    6  0.9898238
+# C_R1   -184.657207 -141.37123 TRUE 2  TRUE   control   24  0.7774584
+# C_R2    -60.558002  401.48275 TRUE 2  TRUE   control   24  0.7512704
+# C_V_0   326.270224  179.11586 TRUE 2  TRUE   control    6  1.3031378
+# RE_K_6 -115.244417 -210.62101 TRUE 2  TRUE        RE    6  1.0704195
+# RE_M_6 -110.363815 -146.03521 TRUE 2  TRUE        RE    6  0.9726290
+# RE_R1  -220.125373  321.07105 TRUE 2  TRUE        RE    6  0.9583222
+# RE_R2     2.086415  -87.83566 TRUE 2  TRUE        RE    6  0.8797168
+# RE_V_6  556.171367  -92.53191 TRUE 2  TRUE        RE    6  2.3806194
+#vst transformation#
+vst_trans_6 <- varianceStabilizingTransformation(trans_dds_6, blind=TRUE)
+distsRL_trans_6 <- dist(t(assay(vst_trans_6)))
+mat_trans_6 <- as.matrix(distsRL_trans_6)
+hmcol <- colorRampPalette(brewer.pal(9, "GnBu"))(100)
+heatmap.2(mat_trans_6, trace="none", col = rev(hmcol), margin=c(13, 13))
+dev.copy(pdf, "HeatmapPlots_trans_vst_6.pdf")
+dev.off()
+z1 <- DESeq2::plotPCA(vst_trans_6, intgroup=c("condition"))
+z1 + geom_label(aes(label = name))
+##
+topVarGenes_trans_6 <- head(order(rowVars(assay(vst_trans_6)), decreasing = TRUE), 50) #picking the 50genes with highest variance across samples
+mat_trans_6 <- assay(vst_trans_6)[ topVarGenes_trans_6, ]
+mat_trans_6 <- mat_trans_6 - rowMeans(mat_trans_6)
+anno_trans_6 <- as.data.frame(colData(vst_trans_6)[, c("condition","time")]) 
+pheatmap(mat_trans_6, annotation_col = anno_trans_6)
+
+### DE analysis ####
+#Just run the whole deseq function together
+trans_dds_6 <- DESeq(trans_dds_6)
+#Extracting results
+DESeq2Res_trans_6_REvsCon <- results(trans_dds_6, pAdjustMethod = "BH", contrast = c("condition", "RE", "control")) #BBH=Benjamini Hochberg adjustment
+DESeq2Res_trans_6_REvsCon
+DESeq2Res_trans_6_REvsCon <- DESeq2Res_trans_6_REvsCon[ !is.na(DESeq2Res_trans_6_REvsCon$padj), ]
+sig_trans_6_REvsCon <- DESeq2Res_trans_6_REvsCon[ which(DESeq2Res_trans_6_REvsCon$padj < 0.05 ), ]
+head( sig_trans_6_REvsCon[ order( sig_trans_6_REvsCon$log2FoldChange ), ] ) #head for strongest downregulation
+tail( sig_trans_6_REvsCon[ order( sig_trans_6_REvsCon$log2FoldChange ), ] ) #tail for strongest downregulation
+summary(sig_trans_6_REvsCon) #1004
+write.csv( as.data.frame(sig_trans_6_REvsCon), file="Gene_dfSig_trans6_REvsCon_0.05.csv") #1004 genes
 
 
 
