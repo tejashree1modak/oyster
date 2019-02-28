@@ -1,3 +1,9 @@
+#This script was written to extract the blast results from an xml format and output in a tabular form. 
+#https://docs.python.org/2/library/xml.etree.elementtree.html
+#Usage:
+#From the ht_transcriptome dir:
+#blast_extract_annot.py -i combined.xml -o name of output table -n can specify the number of hits per seq to include default=1  
+
 import xml.etree.ElementTree as ET
 import argparse
 import sys

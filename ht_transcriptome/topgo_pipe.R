@@ -9,10 +9,16 @@ library("topGO")
 #biocLite("Rgraphviz")
 library("Rgraphviz")
 
+setwd("/Users/tejashree/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/topgo/trans_3")
+
 #Run from commandline as: Rscript.R topgo_pipe.R path/gene2gofile path/interestinggenes_file 
 args = commandArgs(trailingOnly=TRUE)
 geneID2GO <- readMappings(args[1], sep = "\t", IDsep = ",") 
+#geneID2GO <- readMappings("~/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/topgo/trans_1/revscon_gene2go.txt", 
+#                          sep = "\t", IDsep = ",") 
 genesOfInterest <- read.table(args[2],header=TRUE)
+#genesOfInterest <- read.table("~/Documents/Projects/oyster/exp_data/Spring2017/transcriptome_2017/data_analysis/topgo/trans_1/revscon_interestinggenes.txt",
+#                              header=TRUE)
 geneUniverse <- names(geneID2GO)
 genesOfInterest <- genesOfInterest[which(genesOfInterest$padj < 0.01), ] #all of them are <0.05
 genesOfInterest <- as.character(genesOfInterest$gene_name)
