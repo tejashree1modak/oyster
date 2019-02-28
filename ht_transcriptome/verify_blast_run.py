@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 import argparse
 import collections
 import os
+import logging
 
 def read_fa(fa_file):
     fa = collections.OrderedDict()
@@ -20,7 +21,12 @@ def read_fa(fa_file):
     return keys, fa
 
 def get_info_from_xml(xml_file):
-    tree = ET.parse(xml_file)
+    tree = None 
+    try:
+        tree = ET.parse(xml_file)
+    except:
+        logging.exception("Parsing %s", xml_file.name if isinstance(xml_file, file) else xml_file)
+        return None,0
     df = tree.getroot().find("BlastOutput_query-def")
     if df is not None:
         anno = df.text.strip()
@@ -32,6 +38,8 @@ if __name__ == '__main__':
     parser.add_argument('--xml-dir', help='The directory with all xmls', required=True)
     parser.add_argument('--xml-prefix', help='The prefix of each xml file', required=True)
     parser.add_argument('--fa-file', type=argparse.FileType('r'), help='The input fa file', required=True)
+
+    logging.basicConfig()
 
     args = parser.parse_args()
 
@@ -46,6 +54,8 @@ if __name__ == '__main__':
         xanno, xlen = None, None
         if os.path.isfile(xml_file):
             xanno, xlen = get_info_from_xml(xml_file)
+        else:
+            logging.error("Unknown file %s", xml_file)
 
         if xanno is None:
             print "Step %s not run" % ix
